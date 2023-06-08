@@ -31,7 +31,7 @@ func (c *context) status() bool {
 
 func (c *context) start() error {
 	c.ch = make(chan Msg, msgCap)
-	err := c.OnInit(c.args)
+	err := c.OnInit(c.args...)
 	if err != nil {
 		return err
 	}
