@@ -71,6 +71,7 @@ func (c *context) rev(msg Msg) {
 	f := reflect.ValueOf(c.Handler).MethodByName(msg.Cmd)
 	in, err := c.parse(f, msg.InOut)
 	if err != nil {
+		log.Error(err.Error())
 		c.rsp(err, []reflect.Value{}, msg)
 		return
 	}
@@ -87,7 +88,6 @@ func (c *context) rsp(err error, data []reflect.Value, msg Msg) {
 
 func (c *context) parse(f reflect.Value, params []any) (in []reflect.Value, err error) {
 	if f.Type().NumIn()+f.Type().NumOut() != len(params) {
-		log.Error("parameter quantity exception, need: %d, get: %d", f.Type().NumIn()+f.Type().NumOut(), len(params))
 		err = ParamNumError.Fill(f.Type().NumIn()+f.Type().NumOut(), len(params))
 		return
 	}
@@ -96,7 +96,6 @@ func (c *context) parse(f reflect.Value, params []any) (in []reflect.Value, err 
 	for i := 0; i < f.Type().NumIn(); i++ {
 		t := reflect.TypeOf(params[index])
 		if f.Type().In(i) != t {
-			log.Error("parameter %d type mismatch, need: %v, get: %v", index, f.Type().In(i), t)
 			err = ParamTypeMismatch.Fill(index, f.Type().In(i), t)
 			return
 		}
@@ -107,12 +106,10 @@ func (c *context) parse(f reflect.Value, params []any) (in []reflect.Value, err 
 	for i := 0; i < f.Type().NumOut(); i++ {
 		t := reflect.TypeOf(params[index])
 		if t.Kind() != reflect.Pointer {
-			log.Error("The type of the output parameter must be a pointer")
 			err = ParamNotPointerError.Fill(index)
 			return
 		}
 		if f.Type().Out(i) != t.Elem() {
-			log.Error("parameter %d type mismatch, need: %v, get: %v", index, f.Type().Out(i), t.Elem())
 			err = ParamTypeMismatch.Fill(index, f.Type().Out(i), t.Elem())
 			return
 		}

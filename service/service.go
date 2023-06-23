@@ -92,16 +92,18 @@ func Send(f string, in ...any) {
 func Call(f string, inout ...any) error {
 	l := strings.Split(f, ".")
 	if len(l) != 2 {
-		log.Warn("Invalid call object: %s, should be service.func", f)
-		return InvalidCallFuncError.Fill(f)
+		err := InvalidCallFuncError.Fill(f)
+		log.Warn(err.Error())
+		return err
 	}
 	name := l[0]
 	cmd := l[1]
 
 	c, ok := m.serviceByName[name]
 	if !ok {
-		log.Warn("%s service is not registered, call failed", name)
-		return ServiceNotRegisterError.Fill(name)
+		err := ServiceNotRegisterError.Fill(name)
+		log.Warn(err.Error())
+		return err
 	}
 
 	var msg Msg
