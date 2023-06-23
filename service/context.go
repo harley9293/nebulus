@@ -1,19 +1,22 @@
 package service
 
 import (
-	"errors"
 	"reflect"
 	"sync"
 	"time"
 
 	log "github.com/harley9293/blotlog"
-	"github.com/harley9293/nebulus/util"
+	"github.com/harley9293/nebulus/internal/errors"
 )
 
 const (
 	msgCap    = 100 // message queue capacity
 	warnLimit = 0.8 // warning ratio
 )
+
+var ParamNumError = errors.New("parameter number error, need:%d, got:%d")
+var ParamTypeMismatch = errors.New("parameter %d type mismatch, need:%v, got:%v")
+var ParamNotPointerError = errors.New("parameter %d is not a pointer")
 
 type context struct {
 	name    string          // service name
@@ -47,7 +50,7 @@ func (c *context) stop() {
 
 func (c *context) run() {
 	defer c.wg.Done()
-	defer util.TryE()
+	defer errors.TryE()
 	for c.running {
 		select {
 		case msg, ok := <-c.ch:
@@ -85,7 +88,7 @@ func (c *context) rsp(err error, data []reflect.Value, msg Msg) {
 func (c *context) parse(f reflect.Value, params []any) (in []reflect.Value, err error) {
 	if f.Type().NumIn()+f.Type().NumOut() != len(params) {
 		log.Error("parameter quantity exception, need: %d, get: %d", f.Type().NumIn()+f.Type().NumOut(), len(params))
-		err = errors.New("parameter quantity exception")
+		err = ParamNumError.Fill(f.Type().NumIn()+f.Type().NumOut(), len(params))
 		return
 	}
 
@@ -94,7 +97,7 @@ func (c *context) parse(f reflect.Value, params []any) (in []reflect.Value, err 
 		t := reflect.TypeOf(params[index])
 		if f.Type().In(i) != t {
 			log.Error("parameter %d type mismatch, need: %v, get: %v", index, f.Type().In(i), t)
-			err = errors.New("parameter type mismatch")
+			err = ParamTypeMismatch.Fill(index, f.Type().In(i), t)
 			return
 		}
 		index++
@@ -105,12 +108,12 @@ func (c *context) parse(f reflect.Value, params []any) (in []reflect.Value, err 
 		t := reflect.TypeOf(params[index])
 		if t.Kind() != reflect.Pointer {
 			log.Error("The type of the output parameter must be a pointer")
-			err = errors.New("parameter type mismatch")
+			err = ParamNotPointerError.Fill(index)
 			return
 		}
 		if f.Type().Out(i) != t.Elem() {
 			log.Error("parameter %d type mismatch, need: %v, get: %v", index, f.Type().Out(i), t.Elem())
-			err = errors.New("parameter type mismatch")
+			err = ParamTypeMismatch.Fill(index, f.Type().Out(i), t.Elem())
 			return
 		}
 		index++

@@ -1,13 +1,17 @@
 package service
 
 import (
-	"errors"
 	"reflect"
 	"strings"
 	"sync"
 
 	log "github.com/harley9293/blotlog"
+	"github.com/harley9293/nebulus/internal/errors"
 )
+
+var RegisterExistError = errors.New("%s service has already been registered")
+var InvalidCallFuncError = errors.New("invalid call function: %s")
+var ServiceNotRegisterError = errors.New("%s service is not registered")
 
 var m *mgr
 
@@ -43,7 +47,7 @@ func Tick() {
 func Register(name string, h Handler, args ...any) error {
 	_, ok := m.serviceByName[name]
 	if ok {
-		return errors.New("Service has already been registered: " + name)
+		return RegisterExistError.Fill("name")
 	}
 
 	c := context{name, args, nil, &m.wg, true, h}
@@ -89,7 +93,7 @@ func Call(f string, inout ...any) error {
 	l := strings.Split(f, ".")
 	if len(l) != 2 {
 		log.Warn("Invalid call object: %s, should be service.func", f)
-		return errors.New("Invalid call object: " + f)
+		return InvalidCallFuncError.Fill(f)
 	}
 	name := l[0]
 	cmd := l[1]
@@ -97,7 +101,7 @@ func Call(f string, inout ...any) error {
 	c, ok := m.serviceByName[name]
 	if !ok {
 		log.Warn("%s service is not registered, call failed", name)
-		return errors.New("service is not registered: " + name)
+		return ServiceNotRegisterError.Fill(name)
 	}
 
 	var msg Msg
