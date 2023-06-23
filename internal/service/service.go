@@ -6,8 +6,22 @@ import (
 	"sync"
 
 	log "github.com/harley9293/blotlog"
-	"github.com/harley9293/nebulus/internal/errors"
+	"github.com/harley9293/nebulus/pkg/def"
+	"github.com/harley9293/nebulus/pkg/errors"
 )
+
+type Rsp struct {
+	err  error
+	data []reflect.Value
+}
+
+type Msg struct {
+	Cmd   string
+	Req   any
+	InOut []any
+	Sync  bool
+	Done  chan Rsp
+}
 
 var RegisterExistError = errors.New("%s service has already been registered")
 var InvalidCallFuncError = errors.New("invalid call function: %s")
@@ -44,7 +58,7 @@ func Tick() {
 	}
 }
 
-func Register(name string, h Handler, args ...any) error {
+func Register(name string, h def.Handler, args ...any) error {
 	_, ok := m.serviceByName[name]
 	if ok {
 		return RegisterExistError.Fill("name")

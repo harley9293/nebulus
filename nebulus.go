@@ -7,7 +7,8 @@ import (
 	"time"
 
 	log "github.com/harley9293/blotlog"
-	"github.com/harley9293/nebulus/service"
+	"github.com/harley9293/nebulus/internal/service"
+	"github.com/harley9293/nebulus/pkg/def"
 )
 
 type server struct {
@@ -26,8 +27,20 @@ func init() {
 	signal.Notify(svr.kill, syscall.SIGINT, syscall.SIGTERM)
 }
 
-func Register(name string, h service.Handler, args ...any) error {
+func Register(name string, h def.Handler, args ...any) error {
 	return service.Register(name, h, args...)
+}
+
+func Destroy(name string) {
+	service.Destroy(name)
+}
+
+func Send(f string, in ...any) {
+	service.Send(f, in...)
+}
+
+func Call(f string, inout ...any) error {
+	return service.Call(f, inout...)
 }
 
 func Run() {

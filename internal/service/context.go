@@ -6,7 +6,9 @@ import (
 	"time"
 
 	log "github.com/harley9293/blotlog"
-	"github.com/harley9293/nebulus/internal/errors"
+	"github.com/harley9293/nebulus/internal/exception"
+	"github.com/harley9293/nebulus/pkg/def"
+	"github.com/harley9293/nebulus/pkg/errors"
 )
 
 const (
@@ -25,7 +27,7 @@ type context struct {
 	wg      *sync.WaitGroup // coroutine wait structure
 	running bool            // running status
 
-	Handler // service handle
+	def.Handler // service handle
 }
 
 func (c *context) status() bool {
@@ -50,7 +52,7 @@ func (c *context) stop() {
 
 func (c *context) run() {
 	defer c.wg.Done()
-	defer errors.TryE()
+	defer exception.TryE()
 	for c.running {
 		select {
 		case msg, ok := <-c.ch:

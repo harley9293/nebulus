@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/harley9293/nebulus"
-	"github.com/harley9293/nebulus/service"
+	"github.com/harley9293/nebulus/internal/service"
 )
 
 func init() {

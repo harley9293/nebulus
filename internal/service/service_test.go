@@ -3,10 +3,12 @@ package service
 import (
 	"sort"
 	"testing"
+
+	"github.com/harley9293/nebulus/pkg/def"
 )
 
 type Service struct {
-	DefaultHandler
+	def.DefaultHandler
 }
 
 func (m *Service) In0Out0() {

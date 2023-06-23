@@ -1,9 +1,9 @@
 package echo
 
-import "github.com/harley9293/nebulus/service"
+import "github.com/harley9293/nebulus/pkg/def"
 
 type Service struct {
-	service.DefaultHandler
+	def.DefaultHandler
 }
 
 func (m *Service) Print(req string) string {

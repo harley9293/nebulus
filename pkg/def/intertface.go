@@ -1,19 +1,4 @@
-package service
-
-import "reflect"
-
-type Rsp struct {
-	err  error
-	data []reflect.Value
-}
-
-type Msg struct {
-	Cmd   string
-	Req   any
-	InOut []any
-	Sync  bool
-	Done  chan Rsp
-}
+package def
 
 type Handler interface {
 	OnInit(args ...any) error
