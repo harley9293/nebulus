@@ -1,13 +1,12 @@
 package service
 
 import (
-	"reflect"
-	"strings"
-	"sync"
-
 	log "github.com/harley9293/blotlog"
 	"github.com/harley9293/nebulus/pkg/def"
 	"github.com/harley9293/nebulus/pkg/errors"
+	"reflect"
+	"strings"
+	"sync"
 )
 
 type Rsp struct {
@@ -25,7 +24,7 @@ type Msg struct {
 
 var RegisterExistError = errors.New("%s service has already been registered")
 var InvalidCallFuncError = errors.New("invalid call function: %s")
-var ServiceNotRegisterError = errors.New("%s service is not registered")
+var NotRegisterError = errors.New("%s service is not registered")
 
 var m *mgr
 
@@ -52,7 +51,11 @@ func Tick() {
 	for _, v := range m.serviceByName {
 		if !v.status() {
 			log.Warn("%s Service is attempting to restart", v.name)
-			v.start()
+			err := v.start()
+			if err != nil {
+				log.Error("%s Service restart failed: %s", v.name, err.Error())
+				continue
+			}
 			m.wg.Add(1)
 		}
 	}
@@ -115,7 +118,7 @@ func Call(f string, inout ...any) error {
 
 	c, ok := m.serviceByName[name]
 	if !ok {
-		err := ServiceNotRegisterError.Fill(name)
+		err := NotRegisterError.Fill(name)
 		log.Warn(err.Error())
 		return err
 	}
