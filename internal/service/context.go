@@ -51,6 +51,7 @@ func (c *context) stop() {
 }
 
 func (c *context) run() {
+	defer c.stop()
 	defer c.wg.Done()
 	defer exception.TryE()
 	for c.running {
