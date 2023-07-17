@@ -2,7 +2,6 @@ package httpd
 
 import (
 	"github.com/harley9293/nebulus/internal/service"
-	"net/http"
 	"testing"
 )
 
@@ -12,14 +11,22 @@ func TestNewHttpService(t *testing.T) {
 		t.Fatal("NewHttpService() failed")
 	}
 
-	s.AddHandler("/echo", func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte("echo"))
-		if err != nil {
-			t.Fatal("http write failed")
-		}
-	})
+	type Req struct {
+		Context string
+	}
 
-	err := service.Register("http", s, "::8080")
+	type Rsp struct {
+		Result string
+	}
+
+	err := s.AddHandler("GET", "/echo", func(req Req) Rsp {
+		return Rsp{Result: req.Context}
+	})
+	if err != nil {
+		t.Fatal("AddHandler() failed err:" + err.Error())
+	}
+
+	err = service.Register("http", s, "::8080")
 	if err != nil {
 		t.Fatal("Register() failed, err:" + err.Error())
 	}
