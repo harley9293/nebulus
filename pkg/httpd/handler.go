@@ -99,6 +99,13 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 
 	result := h.handler.Call([]reflect.Value{arg.Elem(), reflect.ValueOf(c)})
 
+	if c.Session != nil {
+		http.SetCookie(w, &http.Cookie{
+			Name:  "session_id",
+			Value: c.Session.id,
+		})
+	}
+
 	err = json.NewEncoder(w).Encode(result[0].Interface())
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
