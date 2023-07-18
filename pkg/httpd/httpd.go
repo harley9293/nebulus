@@ -16,7 +16,7 @@ var HandlerParamSizeError = errors.New("handler num in: %d, num out: %d")
 type handlerData struct {
 	path    string
 	method  string
-	f       reflect.Value
+	handler reflect.Value
 	argType reflect.Type
 }
 
@@ -46,7 +46,7 @@ func (m *Service) AddHandler(method, path string, f any) error {
 	m.handlerMap[path] = &handlerData{
 		path:    path,
 		method:  method,
-		f:       fn,
+		handler: fn,
 		argType: argType,
 	}
 
@@ -65,15 +65,15 @@ func (m *Service) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	arg := reflect.New(h.argType).Interface()
+	arg := reflect.New(h.argType)
 
-	err := json.NewDecoder(r.Body).Decode(arg)
+	err := json.NewDecoder(r.Body).Decode(arg.Interface())
 	if err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
-	result := h.f.Call([]reflect.Value{reflect.ValueOf(arg)})
+	result := h.handler.Call([]reflect.Value{arg.Elem()})
 
 	err = json.NewEncoder(w).Encode(result[0].Interface())
 	if err != nil {
