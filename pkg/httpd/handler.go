@@ -94,7 +94,7 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 		Session: nil,
 		r:       r,
 		w:       w,
-		super:   m,
+		sm:      m.sm,
 		h:       h,
 	}
 

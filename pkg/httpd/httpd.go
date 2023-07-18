@@ -5,6 +5,7 @@ import (
 	"github.com/harley9293/nebulus/pkg/errors"
 	"net/http"
 	"reflect"
+	"time"
 )
 
 var InitArgsSizeError = errors.New("http init args size error, got:%d")
@@ -42,12 +43,20 @@ func (m *Service) OnInit(args ...any) error {
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/", m.hm.handler)
 	m.srv = &http.Server{Addr: address, Handler: serveMux}
-	m.err = make(chan error)
+	m.err = make(chan error, 1)
 
 	go func() {
 		m.err <- m.srv.ListenAndServe()
 	}()
+	time.Sleep(100 * time.Millisecond)
 
+	select {
+	case err := <-m.err:
+		if err != nil {
+			return err
+		}
+	default:
+	}
 	return nil
 }
 

@@ -9,7 +9,7 @@ func SessionMiddleware(ctx *Context) error {
 		return err
 	}
 
-	if ctx.super.sm.get(sessionCookie.Value) == nil {
+	if ctx.sm.get(sessionCookie.Value) == nil {
 		http.Error(ctx.w, "Unauthorized", http.StatusUnauthorized)
 		return err
 	}

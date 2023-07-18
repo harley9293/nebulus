@@ -12,14 +12,14 @@ type Context struct {
 
 	r      *http.Request
 	w      http.ResponseWriter
-	super  *handlerMng
+	sm     *sessionMng
 	index  int
 	h      *handlerData
 	values []reflect.Value
 }
 
 func (c *Context) CreateSession(key string) {
-	c.Session = c.super.sm.new(key)
+	c.Session = c.sm.new(key)
 }
 
 func (c *Context) Next() error {
