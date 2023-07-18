@@ -26,8 +26,11 @@ func NewHttpService() *Service {
 	return &Service{hm: newHandlerMng()}
 }
 
-func (m *Service) AddHandler(method, path string, f any, middleware []MiddlewareFunc) error {
-	return m.hm.add(method, path, f, middleware)
+func (m *Service) AddHandler(method, path string, f any, middleware []MiddlewareFunc) {
+	err := m.hm.add(method, path, f, middleware)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (m *Service) OnInit(args ...any) error {
