@@ -91,30 +91,29 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 	c := &Context{
 		Session: nil,
 		r:       r,
+		w:       w,
 		super:   m,
+		h:       h,
 	}
 
 	sessionCookie, err := r.Cookie("session_id")
 	if err != nil {
 		c.Session = m.sm.get(sessionCookie.Value)
 	}
+	c.values = []reflect.Value{arg.Elem(), reflect.ValueOf(c)}
 
-	for _, f := range h.middlewares {
-		f(w, r, c)
+	if len(h.middlewares) > 0 {
+		err = h.middlewares[0](c)
+		if err != nil {
+			http.Error(c.w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
 	}
-
-	result := h.handler.Call([]reflect.Value{arg.Elem(), reflect.ValueOf(c)})
 
 	if c.Session != nil {
 		http.SetCookie(w, &http.Cookie{
 			Name:  "session_id",
 			Value: c.Session.id,
 		})
-	}
-
-	err = json.NewEncoder(w).Encode(result[0].Interface())
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
 	}
 }
