@@ -20,6 +20,12 @@ type handlerMng struct {
 	data map[string]*handlerData
 }
 
+func newHandlerMng() *handlerMng {
+	return &handlerMng{
+		data: make(map[string]*handlerData),
+	}
+}
+
 func handlerVerify(value reflect.Value) error {
 	if value.Type().Kind() != reflect.Func {
 		return HandlerTypeError.Fill(reflect.TypeOf(value))

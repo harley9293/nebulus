@@ -16,13 +16,11 @@ type Service struct {
 	srv *http.Server
 	err chan error
 
-	hm handlerMng
+	hm *handlerMng
 }
 
 func NewHttpService() *Service {
-	return &Service{hm: handlerMng{
-		data: make(map[string]*handlerData),
-	}}
+	return &Service{hm: newHandlerMng()}
 }
 
 func (m *Service) AddHandler(method, path string, f any) error {
@@ -42,7 +40,6 @@ func (m *Service) OnInit(args ...any) error {
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/", m.hm.handler)
 	m.srv = &http.Server{Addr: address, Handler: serveMux}
-
 	m.err = make(chan error)
 
 	go func() {
