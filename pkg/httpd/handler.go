@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"encoding/json"
+	log "github.com/harley9293/blotlog"
 	"github.com/harley9293/nebulus/pkg/errors"
 	"net/http"
 	"reflect"
@@ -87,6 +88,7 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
+	log.Debug("url: %s, req: %+v", r.URL, arg.Interface())
 
 	c := &Context{
 		Session: nil,
@@ -106,6 +108,7 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 		err = h.middlewares[0](c)
 		if err != nil {
 			http.Error(c.w, "Internal Server Error", http.StatusInternalServerError)
+			log.Error("url: %s, err: %s", r.URL, err.Error())
 			return
 		}
 	}
