@@ -9,6 +9,8 @@ import (
 
 var HandlerTypeError = errors.New("add handler type error, got:%T")
 var HandlerParamSizeError = errors.New("handler num in: %d, num out: %d")
+var HandlerParamPointerError = errors.New("handler param must be pointer")
+var HandlerSecondParamTypeError = errors.New("handler second param must be *Context")
 
 type handlerData struct {
 	path    string
@@ -18,11 +20,14 @@ type handlerData struct {
 
 type handlerMng struct {
 	data map[string]*handlerData
+
+	sm *sessionMng
 }
 
 func newHandlerMng() *handlerMng {
 	return &handlerMng{
 		data: make(map[string]*handlerData),
+		sm:   newSessionMng(),
 	}
 }
 
@@ -31,8 +36,16 @@ func handlerVerify(value reflect.Value) error {
 		return HandlerTypeError.Fill(reflect.TypeOf(value))
 	}
 
-	if value.Type().NumIn() != 1 || value.Type().NumOut() != 1 {
+	if value.Type().NumIn() != 2 || value.Type().NumOut() != 1 {
 		return HandlerParamSizeError.Fill(value.Type().NumIn(), value.Type().NumOut())
+	}
+
+	if value.Type().In(0).Kind() != reflect.Ptr || value.Type().In(1).Kind() != reflect.Ptr {
+		return HandlerParamPointerError
+	}
+
+	if value.Type().In(1) != reflect.TypeOf(&Context{}) {
+		return HandlerSecondParamTypeError
 	}
 
 	return nil
@@ -67,14 +80,24 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	arg := reflect.New(h.handler.Type().In(0))
-
 	err := json.NewDecoder(r.Body).Decode(arg.Interface())
 	if err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
-	result := h.handler.Call([]reflect.Value{arg.Elem()})
+	c := &Context{
+		Session: nil,
+		r:       r,
+		super:   m,
+	}
+
+	sessionCookie, err := r.Cookie("session_id")
+	if err != nil {
+		c.Session = m.sm.get(sessionCookie.Value)
+	}
+
+	result := h.handler.Call([]reflect.Value{arg.Elem(), reflect.ValueOf(c)})
 
 	err = json.NewEncoder(w).Encode(result[0].Interface())
 	if err != nil {
