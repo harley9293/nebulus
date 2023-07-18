@@ -10,6 +10,8 @@ import (
 var InitArgsSizeError = errors.New("http init args size error, got:%d")
 var InitArgsTypeError = errors.New("http init args type error, got:%T")
 
+type MiddlewareFunc func(http.ResponseWriter, *http.Request, *Context)
+
 type Service struct {
 	def.DefaultHandler
 
@@ -23,8 +25,8 @@ func NewHttpService() *Service {
 	return &Service{hm: newHandlerMng()}
 }
 
-func (m *Service) AddHandler(method, path string, f any) error {
-	return m.hm.add(method, path, f)
+func (m *Service) AddHandler(method, path string, f any, middleware []MiddlewareFunc) error {
+	return m.hm.add(method, path, f, middleware)
 }
 
 func (m *Service) OnInit(args ...any) error {

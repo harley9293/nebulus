@@ -13,9 +13,10 @@ var HandlerParamPointerError = errors.New("handler param must be pointer")
 var HandlerSecondParamTypeError = errors.New("handler second param must be *Context")
 
 type handlerData struct {
-	path    string
-	method  string
-	handler reflect.Value
+	path        string
+	method      string
+	handler     reflect.Value
+	middlewares []MiddlewareFunc
 }
 
 type handlerMng struct {
@@ -51,7 +52,7 @@ func handlerVerify(value reflect.Value) error {
 	return nil
 }
 
-func (m *handlerMng) add(method, path string, f any) error {
+func (m *handlerMng) add(method, path string, f any, middlewares []MiddlewareFunc) error {
 	fn := reflect.ValueOf(f)
 	err := handlerVerify(fn)
 	if err != nil {
@@ -59,9 +60,10 @@ func (m *handlerMng) add(method, path string, f any) error {
 	}
 
 	m.data[path] = &handlerData{
-		path:    path,
-		method:  method,
-		handler: fn,
+		path:        path,
+		method:      method,
+		handler:     fn,
+		middlewares: middlewares,
 	}
 
 	return nil
@@ -95,6 +97,10 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 	sessionCookie, err := r.Cookie("session_id")
 	if err != nil {
 		c.Session = m.sm.get(sessionCookie.Value)
+	}
+
+	for _, f := range h.middlewares {
+		f(w, r, c)
 	}
 
 	result := h.handler.Call([]reflect.Value{arg.Elem(), reflect.ValueOf(c)})

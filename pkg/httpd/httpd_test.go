@@ -21,7 +21,7 @@ func TestNewHttpService(t *testing.T) {
 
 	err := s.AddHandler("GET", "/echo", func(req *Req, ctx *Context) Rsp {
 		return Rsp{Result: req.Context}
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal("AddHandler() failed err:" + err.Error())
 	}
