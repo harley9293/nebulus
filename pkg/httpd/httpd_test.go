@@ -52,10 +52,13 @@ func TestInitEnv(t *testing.T) {
 
 	err := s.AddHandler("POST", "/login", HandleLoginReq, nil)
 	if err != nil {
-		t.Fatal("AddHandler() failed err:" + err.Error())
+		t.Fatal("AddHandler() /login failed err:" + err.Error())
 	}
 
 	err = s.AddHandler("GET", "/echo", HandleEchoReq, []MiddlewareFunc{SessionMiddleware})
+	if err != nil {
+		t.Fatal("AddHandler() /echo failed err:" + err.Error())
+	}
 
 	err = nebulus.Register("http", s, "127.0.0.1:36000")
 	if err != nil {

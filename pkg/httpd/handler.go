@@ -88,7 +88,7 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
-	log.Debug("url: %s, req: %+v", r.URL, arg.Interface())
+	log.Debug("url: %s, req: %+v", r.URL, arg.Elem().Interface())
 
 	c := &Context{
 		Session: nil,
@@ -99,18 +99,16 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionCookie, err := r.Cookie("session_id")
-	if err != nil {
+	if err == nil {
 		c.Session = m.sm.get(sessionCookie.Value)
 	}
 	c.values = []reflect.Value{arg.Elem(), reflect.ValueOf(c)}
 
-	if len(h.middlewares) > 0 {
-		err = h.middlewares[0](c)
-		if err != nil {
-			http.Error(c.w, "Internal Server Error", http.StatusInternalServerError)
-			log.Error("url: %s, err: %s", r.URL, err.Error())
-			return
-		}
+	err = c.Next()
+	if err != nil {
+		http.Error(c.w, "Internal Server Error", http.StatusInternalServerError)
+		log.Error("url: %s, err: %s", r.URL, err.Error())
+		return
 	}
 
 	if c.Session != nil {
