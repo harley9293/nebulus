@@ -44,7 +44,23 @@ func HandleEchoReq(req *EchoReq, ctx *Context) EchoRsp {
 	return rsp
 }
 
+var serviceStart = false
+
+type PanicReq struct {
+}
+
+type PanicRsp struct {
+}
+
+func HandlePanicReq(req *PanicReq, ctx *Context) PanicRsp {
+	panic("test panic")
+}
+
 func initTestEnv(t *testing.T) {
+	if serviceStart {
+		return
+	}
+
 	s := NewHttpService()
 	if s == nil {
 		t.Fatal("NewHttpService() failed")
@@ -52,32 +68,34 @@ func initTestEnv(t *testing.T) {
 
 	s.AddHandler("POST", "/login", HandleLoginReq, nil)
 	s.AddHandler("POST", "/echo", HandleEchoReq, []MiddlewareFunc{SessionMiddleware})
+	s.AddHandler("POST", "/panic", HandlePanicReq, nil)
 
 	err := nebulus.Register("http", s, "127.0.0.1:36000")
 	if err != nil {
 		t.Fatal("Register() failed, err:" + err.Error())
 	}
 
+	serviceStart = true
 	go nebulus.Run()
 }
 
-func doRequest(t *testing.T, method, url, session string, req, rsp any) (status int, sessionID string) {
+func doRequest(t *testing.T, method, url, session string, req, rsp any) (status int, sessionID string, err error) {
 	b, err := json.Marshal(req)
 	if err != nil {
-		t.Fatal("json.Marshal() failed, err:" + err.Error())
+		return 0, "", err
 	}
 	data := bytes.NewBuffer(b)
 	var resp *http.Response
 	request, err := http.NewRequest(method, "http://localhost:36000"+url, data)
 	if err != nil {
-		t.Fatal("http.NewRequest() failed, err:" + err.Error())
+		return 0, "", err
 	}
 	if session != "" {
 		request.AddCookie(&http.Cookie{Name: "session_id", Value: session})
 	}
 	resp, err = http.DefaultClient.Do(request)
 	if err != nil {
-		t.Fatal("http.Post() failed, err:" + err.Error())
+		return 0, "", err
 	}
 	status = resp.StatusCode
 	defer func(Body io.ReadCloser) {
@@ -90,7 +108,7 @@ func doRequest(t *testing.T, method, url, session string, req, rsp any) (status 
 	if status == http.StatusOK {
 		err = json.NewDecoder(resp.Body).Decode(rsp)
 		if err != nil {
-			t.Fatal("json.NewDecoder().Decode() failed, err:" + err.Error())
+			return 0, "", err
 		}
 	}
 
@@ -111,7 +129,10 @@ func TestLogin(t *testing.T) {
 		Pass: "123456",
 	}
 	rsp := &LoginRsp{}
-	status, sessionID := doRequest(t, "POST", "/login", "", req, rsp)
+	status, sessionID, err := doRequest(t, "POST", "/login", "", req, rsp)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
 
 	if status != http.StatusOK {
 		t.Fatal("status not ok, status:" + string(rune(status)))
@@ -133,13 +154,21 @@ func TestEchoWithLogin(t *testing.T) {
 		Pass: "123456",
 	}
 	rsp := &LoginRsp{}
-	status, sessionID := doRequest(t, "POST", "/login", "", req, rsp)
+	status, sessionID, err := doRequest(t, "POST", "/login", "", req, rsp)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+
 	if status != http.StatusOK {
 		t.Fatal("status not ok, status:" + string(rune(status)))
 	}
 
 	echoRsp := &EchoRsp{}
-	status, sessionID = doRequest(t, "POST", "/echo", sessionID, &EchoReq{Content: "hello"}, echoRsp)
+	status, sessionID, err = doRequest(t, "POST", "/echo", sessionID, &EchoReq{Content: "hello"}, echoRsp)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+
 	if status != http.StatusOK {
 		t.Fatal("status not ok, status:" + string(rune(status)))
 	}
@@ -152,7 +181,11 @@ func TestEchoWithLogin(t *testing.T) {
 func TestEchoWithoutLogin(t *testing.T) {
 	initTestEnv(t)
 	echoRsp := &EchoRsp{}
-	status, _ := doRequest(t, "POST", "/echo", "", &EchoReq{Content: "hello"}, echoRsp)
+	status, _, err := doRequest(t, "POST", "/echo", "", &EchoReq{Content: "hello"}, echoRsp)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+
 	if status != http.StatusUnauthorized {
 		t.Fatal("status not 401, status:" + string(rune(status)))
 	}
@@ -160,4 +193,38 @@ func TestEchoWithoutLogin(t *testing.T) {
 
 func TestServiceFailed(t *testing.T) {
 	initTestEnv(t)
+
+	req := &LoginReq{
+		User: "harley9293",
+		Pass: "123456",
+	}
+	rsp := &LoginRsp{}
+	status, sessionID, err := doRequest(t, "POST", "/login", "", req, rsp)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+
+	if status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(status)))
+	}
+
+	panicRsp := &PanicRsp{}
+	_, _, err = doRequest(t, "POST", "/panic", "", &PanicReq{}, panicRsp)
+	if err == nil {
+		t.Fatal("doRequest() failed, err is nil")
+	}
+
+	echoRsp := &EchoRsp{}
+	status, sessionID, err = doRequest(t, "POST", "/echo", sessionID, &EchoReq{Content: "hello"}, echoRsp)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+
+	if status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(status)))
+	}
+
+	if echoRsp.Echo != "hello" {
+		t.Fatal("echoRsp.Echo != hello, echoRsp.Echo:" + echoRsp.Echo)
+	}
 }
