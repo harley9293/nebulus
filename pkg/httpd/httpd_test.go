@@ -61,18 +61,21 @@ func initTestEnv(t *testing.T) {
 	go nebulus.Run()
 }
 
-func doRequest(t *testing.T, method, url string, req, rsp any) (status int, sessionID string) {
+func doRequest(t *testing.T, method, url, session string, req, rsp any) (status int, sessionID string) {
 	b, err := json.Marshal(req)
 	if err != nil {
 		t.Fatal("json.Marshal() failed, err:" + err.Error())
 	}
 	data := bytes.NewBuffer(b)
 	var resp *http.Response
-	if method == "POST" {
-		resp, err = http.Post("http://localhost:36000"+url, "application/json", data)
-	} else {
-		t.Fatal("method not support, method:" + method)
+	request, err := http.NewRequest(method, "http://localhost:36000"+url, data)
+	if err != nil {
+		t.Fatal("http.NewRequest() failed, err:" + err.Error())
 	}
+	if session != "" {
+		request.AddCookie(&http.Cookie{Name: "session_id", Value: session})
+	}
+	resp, err = http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatal("http.Post() failed, err:" + err.Error())
 	}
@@ -84,9 +87,11 @@ func doRequest(t *testing.T, method, url string, req, rsp any) (status int, sess
 		}
 	}(resp.Body)
 
-	err = json.NewDecoder(resp.Body).Decode(&rsp)
-	if err != nil {
-		t.Fatal("json.NewDecoder().Decode() failed, err:" + err.Error())
+	if status == http.StatusOK {
+		err = json.NewDecoder(resp.Body).Decode(rsp)
+		if err != nil {
+			t.Fatal("json.NewDecoder().Decode() failed, err:" + err.Error())
+		}
 	}
 
 	for _, cookie := range resp.Cookies() {
@@ -106,7 +111,7 @@ func TestLogin(t *testing.T) {
 		Pass: "123456",
 	}
 	rsp := &LoginRsp{}
-	status, sessionID := doRequest(t, "POST", "/login", req, rsp)
+	status, sessionID := doRequest(t, "POST", "/login", "", req, rsp)
 
 	if status != http.StatusOK {
 		t.Fatal("status not ok, status:" + string(rune(status)))
@@ -123,10 +128,34 @@ func TestLogin(t *testing.T) {
 
 func TestEchoWithLogin(t *testing.T) {
 	initTestEnv(t)
+	req := &LoginReq{
+		User: "harley9293",
+		Pass: "123456",
+	}
+	rsp := &LoginRsp{}
+	status, sessionID := doRequest(t, "POST", "/login", "", req, rsp)
+	if status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(status)))
+	}
+
+	echoRsp := &EchoRsp{}
+	status, sessionID = doRequest(t, "POST", "/echo", sessionID, &EchoReq{Content: "hello"}, echoRsp)
+	if status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(status)))
+	}
+
+	if echoRsp.Echo != "hello" {
+		t.Fatal("echoRsp.Echo != hello, echoRsp.Echo:" + echoRsp.Echo)
+	}
 }
 
 func TestEchoWithoutLogin(t *testing.T) {
 	initTestEnv(t)
+	echoRsp := &EchoRsp{}
+	status, _ := doRequest(t, "POST", "/echo", "", &EchoReq{Content: "hello"}, echoRsp)
+	if status != http.StatusUnauthorized {
+		t.Fatal("status not 401, status:" + string(rune(status)))
+	}
 }
 
 func TestServiceFailed(t *testing.T) {

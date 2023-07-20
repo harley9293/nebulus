@@ -33,6 +33,6 @@ func (c *Context) Next() {
 		return
 	}
 
-	c.h.middlewares[c.index](c)
 	c.index++
+	c.h.middlewares[c.index-1](c)
 }
