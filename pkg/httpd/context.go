@@ -1,8 +1,6 @@
 package httpd
 
 import (
-	"encoding/json"
-	log "github.com/harley9293/blotlog"
 	"net/http"
 	"reflect"
 )
@@ -16,6 +14,8 @@ type Context struct {
 	index  int
 	h      *handlerData
 	values []reflect.Value
+	status int
+	rsp    any
 }
 
 func (c *Context) CreateSession(key string) {
@@ -23,16 +23,13 @@ func (c *Context) CreateSession(key string) {
 }
 
 func (c *Context) Next() error {
+	if c.status != http.StatusOK {
+		return nil
+	}
+
 	if c.index >= len(c.h.middlewares) {
 		result := c.h.handler.Call(c.values)
-		err := json.NewEncoder(c.w).Encode(result[0].Interface())
-		if err != nil {
-			http.Error(c.w, "Internal Server Error", http.StatusInternalServerError)
-			log.Error("url: %s, err: %s", c.r.URL, err.Error())
-			return err
-		}
-
-		log.Debug("url: %s, rsp: %+v", c.r.URL, result[0].Interface())
+		c.rsp = result[0].Interface()
 		return nil
 	}
 

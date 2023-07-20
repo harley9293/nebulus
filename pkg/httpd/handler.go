@@ -96,6 +96,7 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 		w:       w,
 		sm:      m.sm,
 		h:       h,
+		status:  http.StatusOK,
 	}
 
 	sessionCookie, err := r.Cookie("session_id")
@@ -117,4 +118,12 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 			Value: c.Session.id,
 		})
 	}
+
+	err = json.NewEncoder(c.w).Encode(c.rsp)
+	if err != nil {
+		http.Error(c.w, "Internal Server Error", http.StatusInternalServerError)
+		log.Error("url: %s, err: %s", c.r.URL, err.Error())
+	}
+
+	log.Debug("url: %s, rsp: %+v", c.r.URL, c.rsp)
 }
