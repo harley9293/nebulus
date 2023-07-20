@@ -11,7 +11,7 @@ import (
 var InitArgsSizeError = errors.New("http init args size error, got:%d")
 var InitArgsTypeError = errors.New("http init args type error, got:%T")
 
-type MiddlewareFunc func(*Context) error
+type MiddlewareFunc func(*Context)
 
 type Service struct {
 	def.DefaultHandler

@@ -105,10 +105,9 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	c.values = []reflect.Value{arg.Elem(), reflect.ValueOf(c)}
 
-	err = c.Next()
-	if err != nil {
-		http.Error(c.w, "Internal Server Error", http.StatusInternalServerError)
-		log.Error("url: %s, err: %s", r.URL, err.Error())
+	c.Next()
+	if c.status != http.StatusOK {
+		http.Error(c.w, http.StatusText(c.status), c.status)
 		return
 	}
 
@@ -122,7 +121,7 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(c.w).Encode(c.rsp)
 	if err != nil {
 		http.Error(c.w, "Internal Server Error", http.StatusInternalServerError)
-		log.Error("url: %s, err: %s", c.r.URL, err.Error())
+		return
 	}
 
 	log.Debug("url: %s, rsp: %+v", c.r.URL, c.rsp)

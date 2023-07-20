@@ -22,21 +22,17 @@ func (c *Context) CreateSession(key string) {
 	c.Session = c.sm.new(key)
 }
 
-func (c *Context) Next() error {
+func (c *Context) Next() {
 	if c.status != http.StatusOK {
-		return nil
+		return
 	}
 
 	if c.index >= len(c.h.middlewares) {
 		result := c.h.handler.Call(c.values)
 		c.rsp = result[0].Interface()
-		return nil
+		return
 	}
 
-	err := c.h.middlewares[c.index](c)
-	if err != nil {
-		return err
-	}
+	c.h.middlewares[c.index](c)
 	c.index++
-	return nil
 }
