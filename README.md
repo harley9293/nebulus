@@ -1,6 +1,7 @@
 # nebulus
 
 ![](https://github.com/harley9293/nebulus/workflows/Go/badge.svg)
+[![codecov](https://codecov.io/gh/harley9293/nebulus/branch/master/graph/badge.svg?token=UB9yvfrUP9)](https://codecov.io/gh/harley9293/nebulus)
 
 A simple and easy-to-use distributed universal server framework.
 
