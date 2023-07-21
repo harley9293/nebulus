@@ -67,7 +67,7 @@ func initTestEnv(t *testing.T) {
 	}
 
 	s.AddHandler("POST", "/login", HandleLoginReq, nil)
-	s.AddHandler("POST", "/echo", HandleEchoReq, []MiddlewareFunc{SessionMiddleware})
+	s.AddHandler("POST", "/echo", HandleEchoReq, []MiddlewareFunc{SessionMW})
 	s.AddHandler("POST", "/panic", HandlePanicReq, nil)
 
 	err := nebulus.Register("http", s, "127.0.0.1:36000")
