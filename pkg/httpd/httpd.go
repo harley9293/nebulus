@@ -33,6 +33,10 @@ func (m *Service) AddHandler(method, path string, f any, middleware []Middleware
 	}
 }
 
+func (m *Service) AddGlobalMiddleWare(f MiddlewareFunc) {
+	m.hm.gmw = append(m.hm.gmw, f)
+}
+
 func (m *Service) OnInit(args ...any) error {
 	if len(args) != 1 {
 		return InitArgsSizeError.Fill(len(args))

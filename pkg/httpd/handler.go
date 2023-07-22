@@ -22,8 +22,8 @@ type handlerData struct {
 
 type handlerMng struct {
 	data map[string]*handlerData
-
-	sm *sessionMng
+	sm   *sessionMng
+	gmw  []MiddlewareFunc
 }
 
 func newHandlerMng() *handlerMng {
@@ -97,6 +97,7 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 		sm:      m.sm,
 		h:       h,
 		status:  http.StatusOK,
+		gmw:     m.gmw,
 	}
 
 	sessionCookie, err := r.Cookie("session_id")

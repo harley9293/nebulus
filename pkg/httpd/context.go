@@ -16,6 +16,8 @@ type Context struct {
 	values []reflect.Value
 	status int
 	rsp    any
+	gmw    []MiddlewareFunc
+	gIndex int
 }
 
 func (c *Context) CreateSession(key string) {
@@ -24,6 +26,12 @@ func (c *Context) CreateSession(key string) {
 
 func (c *Context) Next() {
 	if c.status != http.StatusOK {
+		return
+	}
+
+	if c.gIndex < len(c.gmw) {
+		c.gIndex++
+		c.gmw[c.gIndex-1](c)
 		return
 	}
 
