@@ -2,14 +2,8 @@ package httpd
 
 import "net/http"
 
-func SessionMW(ctx *Context) {
-	sessionCookie, err := ctx.r.Cookie("session_id")
-	if err != nil {
-		ctx.status = http.StatusUnauthorized
-		return
-	}
-
-	if ctx.sm.get(sessionCookie.Value) == nil {
+func AuthMW(ctx *Context) {
+	if ctx.Session == nil {
 		ctx.status = http.StatusUnauthorized
 		return
 	}

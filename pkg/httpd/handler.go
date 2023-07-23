@@ -91,13 +91,12 @@ func (m *handlerMng) handler(w http.ResponseWriter, r *http.Request) {
 	log.Debug("url: %s, req: %+v", r.URL, arg.Elem().Interface())
 
 	c := &Context{
-		Session: nil,
-		r:       r,
-		w:       w,
-		sm:      m.sm,
-		h:       h,
-		status:  http.StatusOK,
-		gmw:     m.gmw,
+		r:      r,
+		w:      w,
+		sm:     m.sm,
+		h:      h,
+		status: http.StatusOK,
+		gmw:    m.gmw,
 	}
 
 	sessionCookie, err := r.Cookie("session_id")
