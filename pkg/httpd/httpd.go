@@ -24,9 +24,20 @@ type Service struct {
 	sm                *sessionMng
 }
 
-func NewHttpService() *Service {
+type HttpServiceConfig struct {
+	logMiddleware MiddlewareFunc
+}
+
+func (c *HttpServiceConfig) fill() {
+	if c.logMiddleware == nil {
+		c.logMiddleware = logMW
+	}
+}
+
+func NewHttpService(config *HttpServiceConfig) *Service {
+	config.fill()
 	service := &Service{hm: newHandlerMng(), sm: newSessionMng()}
-	service.AddGlobalMiddleWare(preRequestMW, logMW, preResponseMW)
+	service.AddGlobalMiddleWare(preRequestMW, config.logMiddleware, preResponseMW)
 	return service
 }
 

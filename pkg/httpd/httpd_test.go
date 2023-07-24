@@ -61,7 +61,7 @@ func initTestEnv(t *testing.T) {
 		return
 	}
 
-	s := NewHttpService()
+	s := NewHttpService(&HttpServiceConfig{})
 	if s == nil {
 		t.Fatal("NewHttpService() failed")
 	}
