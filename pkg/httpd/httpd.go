@@ -19,22 +19,30 @@ type Service struct {
 	srv *http.Server
 	err chan error
 
-	hm *handlerMng
+	globalMiddlewares []MiddlewareFunc
+	hm                *handlerMng
+	sm                *sessionMng
+}
+
+func DefaultHttpService() *Service {
+	service := NewHttpService()
+	service.AddGlobalMiddleWare(PreRequestMW, PreResponseMW)
+	return service
 }
 
 func NewHttpService() *Service {
-	return &Service{hm: newHandlerMng()}
+	return &Service{hm: newHandlerMng(), sm: newSessionMng()}
 }
 
-func (m *Service) AddHandler(method, path string, f any, middleware []MiddlewareFunc) {
+func (m *Service) AddHandler(method, path string, f any, middleware ...MiddlewareFunc) {
 	err := m.hm.add(method, path, f, middleware)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (m *Service) AddGlobalMiddleWare(f MiddlewareFunc) {
-	m.hm.gmw = append(m.hm.gmw, f)
+func (m *Service) AddGlobalMiddleWare(f ...MiddlewareFunc) {
+	m.globalMiddlewares = f
 }
 
 func (m *Service) OnInit(args ...any) error {
@@ -48,7 +56,16 @@ func (m *Service) OnInit(args ...any) error {
 	}
 
 	serveMux := http.NewServeMux()
-	serveMux.HandleFunc("/", m.hm.handler)
+	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		c := &Context{
+			r:           r,
+			w:           w,
+			service:     m,
+			status:      http.StatusOK,
+			middlewares: m.globalMiddlewares,
+		}
+		c.Next()
+	})
 	m.srv = &http.Server{Addr: address, Handler: serveMux}
 	m.err = make(chan error, 1)
 

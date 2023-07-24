@@ -61,14 +61,14 @@ func initTestEnv(t *testing.T) {
 		return
 	}
 
-	s := NewHttpService()
+	s := DefaultHttpService()
 	if s == nil {
 		t.Fatal("NewHttpService() failed")
 	}
 
-	s.AddHandler("POST", "/login", HandleLoginReq, nil)
-	s.AddHandler("POST", "/echo", HandleEchoReq, []MiddlewareFunc{AuthMW})
-	s.AddHandler("POST", "/panic", HandlePanicReq, nil)
+	s.AddHandler("POST", "/login", HandleLoginReq)
+	s.AddHandler("POST", "/echo", HandleEchoReq, AuthMW)
+	s.AddHandler("POST", "/panic", HandlePanicReq)
 
 	err := nebulus.Register("http", s, "127.0.0.1:36000")
 	if err != nil {
@@ -91,7 +91,7 @@ func doRequest(t *testing.T, method, url, session string, req, rsp any) (status 
 		return 0, "", err
 	}
 	if session != "" {
-		request.AddCookie(&http.Cookie{Name: "session_id", Value: session})
+		request.AddCookie(&http.Cookie{Name: "token", Value: session})
 	}
 	resp, err = http.DefaultClient.Do(request)
 	if err != nil {
@@ -113,7 +113,7 @@ func doRequest(t *testing.T, method, url, session string, req, rsp any) (status 
 	}
 
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "session_id" {
+		if cookie.Name == "token" {
 			sessionID = cookie.Value
 			return
 		}

@@ -8,20 +8,21 @@ import (
 type Context struct {
 	Session *Session
 
-	r      *http.Request
-	w      http.ResponseWriter
-	sm     *sessionMng
-	index  int
-	h      *handlerData
-	values []reflect.Value
-	status int
-	rsp    any
-	gmw    []MiddlewareFunc
-	gIndex int
+	r       *http.Request
+	w       http.ResponseWriter
+	service *Service
+	status  int
+
+	in  reflect.Value
+	out any
+
+	index       int
+	middlewares []MiddlewareFunc
+	handler     reflect.Value
 }
 
 func (c *Context) CreateSession(key string) {
-	c.Session = c.sm.new(key)
+	c.Session = c.service.sm.new(key)
 }
 
 func (c *Context) Next() {
@@ -29,18 +30,12 @@ func (c *Context) Next() {
 		return
 	}
 
-	if c.gIndex < len(c.gmw) {
-		c.gIndex++
-		c.gmw[c.gIndex-1](c)
-		return
-	}
-
-	if c.index >= len(c.h.middlewares) {
-		result := c.h.handler.Call(c.values)
-		c.rsp = result[0].Interface()
+	if c.index >= len(c.middlewares) {
+		result := c.handler.Call([]reflect.Value{c.in, reflect.ValueOf(c)})
+		c.out = result[0].Interface()
 		return
 	}
 
 	c.index++
-	c.h.middlewares[c.index-1](c)
+	c.middlewares[c.index-1](c)
 }
