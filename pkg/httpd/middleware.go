@@ -32,17 +32,30 @@ func CookieMW(ctx *Context) {
 	}
 }
 
-func logMW(ctx *Context) {
-	log.Debug("url: %s, req: %+v", ctx.r.URL, ctx.in.Interface())
+func RspPackMW(ctx *Context) {
 	ctx.Next()
 
-	if ctx.status != http.StatusOK {
-		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)
+	rsp := make(map[string]interface{})
+	if ctx.status == http.StatusOK {
+		rsp["code"] = 0
+		rsp["msg"] = "success"
+		rsp["data"] = ctx.out
+	} else {
+		rsp["code"] = ctx.status
+		rsp["msg"] = http.StatusText(ctx.status)
+	}
+	ctx.out = rsp
+}
+
+func logMW(ctx *Context) {
+	log.Info("url: %s, req: %+v", ctx.r.URL, ctx.in.Interface())
+	ctx.Next()
+
+	if ctx.status == http.StatusOK {
 		log.Error("url: %s, err, statue: %d", ctx.r.URL, ctx.status)
 		return
 	}
-
-	log.Debug("url: %s, rsp: %+v", ctx.r.URL, ctx.out)
+	log.Info("url: %s, rsp: %+v", ctx.r.URL, ctx.out)
 }
 
 func preRequestMW(ctx *Context) {
@@ -81,5 +94,8 @@ func preResponseMW(ctx *Context) {
 			ctx.status = http.StatusInternalServerError
 			return
 		}
+	} else {
+		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)
+		return
 	}
 }
