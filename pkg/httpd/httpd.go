@@ -24,14 +24,10 @@ type Service struct {
 	sm                *sessionMng
 }
 
-func DefaultHttpService() *Service {
-	service := NewHttpService()
-	service.AddGlobalMiddleWare(DefaultMW)
-	return service
-}
-
 func NewHttpService() *Service {
-	return &Service{hm: newHandlerMng(), sm: newSessionMng()}
+	service := &Service{hm: newHandlerMng(), sm: newSessionMng()}
+	service.AddGlobalMiddleWare(defaultMW)
+	return service
 }
 
 func (m *Service) AddHandler(method, path string, f any, middleware ...MiddlewareFunc) {
@@ -42,7 +38,7 @@ func (m *Service) AddHandler(method, path string, f any, middleware ...Middlewar
 }
 
 func (m *Service) AddGlobalMiddleWare(f ...MiddlewareFunc) {
-	m.globalMiddlewares = f
+	m.globalMiddlewares = append(m.globalMiddlewares, f...)
 }
 
 func (m *Service) OnInit(args ...any) error {

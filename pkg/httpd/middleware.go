@@ -8,6 +8,11 @@ import (
 )
 
 func AuthMW(ctx *Context) {
+	sessionCookie, err := ctx.r.Cookie("token")
+	if err == nil {
+		ctx.Session = ctx.service.sm.get(sessionCookie.Value)
+	}
+
 	if ctx.Session == nil {
 		ctx.status = http.StatusUnauthorized
 		return
@@ -16,7 +21,18 @@ func AuthMW(ctx *Context) {
 	ctx.Next()
 }
 
-func DefaultMW(ctx *Context) {
+func CookieMW(ctx *Context) {
+	ctx.Next()
+
+	if ctx.Session != nil {
+		http.SetCookie(ctx.w, &http.Cookie{
+			Name:  "token",
+			Value: ctx.Session.id,
+		})
+	}
+}
+
+func defaultMW(ctx *Context) {
 	h, ok := ctx.service.hm.data[ctx.r.URL.Path]
 	if !ok {
 		ctx.status = http.StatusNotFound
@@ -40,11 +56,6 @@ func DefaultMW(ctx *Context) {
 		ctx.middlewares = append(ctx.middlewares, h.middlewares...)
 	}
 
-	sessionCookie, err := ctx.r.Cookie("token")
-	if err == nil {
-		ctx.Session = ctx.service.sm.get(sessionCookie.Value)
-	}
-
 	log.Debug("url: %s, req: %+v", ctx.r.URL, arg.Elem().Interface())
 	ctx.Next()
 
@@ -52,13 +63,6 @@ func DefaultMW(ctx *Context) {
 		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)
 		log.Error("url: %s err, statue: %d", ctx.r.URL, ctx.status)
 		return
-	}
-
-	if ctx.Session != nil {
-		http.SetCookie(ctx.w, &http.Cookie{
-			Name:  "token",
-			Value: ctx.Session.id,
-		})
 	}
 
 	err = json.NewEncoder(ctx.w).Encode(ctx.out)

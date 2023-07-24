@@ -61,11 +61,12 @@ func initTestEnv(t *testing.T) {
 		return
 	}
 
-	s := DefaultHttpService()
+	s := NewHttpService()
 	if s == nil {
 		t.Fatal("NewHttpService() failed")
 	}
 
+	s.AddGlobalMiddleWare(CookieMW)
 	s.AddHandler("POST", "/login", HandleLoginReq)
 	s.AddHandler("POST", "/echo", HandleEchoReq, AuthMW)
 	s.AddHandler("POST", "/panic", HandlePanicReq)
