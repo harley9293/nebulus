@@ -26,7 +26,7 @@ type Service struct {
 
 func NewHttpService() *Service {
 	service := &Service{hm: newHandlerMng(), sm: newSessionMng()}
-	service.AddGlobalMiddleWare(defaultMW)
+	service.AddGlobalMiddleWare(preRequestMW, logMW, preResponseMW)
 	return service
 }
 

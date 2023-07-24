@@ -32,7 +32,20 @@ func CookieMW(ctx *Context) {
 	}
 }
 
-func defaultMW(ctx *Context) {
+func logMW(ctx *Context) {
+	log.Debug("url: %s, req: %+v", ctx.r.URL, ctx.in.Interface())
+	ctx.Next()
+
+	if ctx.status != http.StatusOK {
+		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)
+		log.Error("url: %s, err, statue: %d", ctx.r.URL, ctx.status)
+		return
+	}
+
+	log.Debug("url: %s, rsp: %+v", ctx.r.URL, ctx.out)
+}
+
+func preRequestMW(ctx *Context) {
 	h, ok := ctx.service.hm.data[ctx.r.URL.Path]
 	if !ok {
 		ctx.status = http.StatusNotFound
@@ -56,19 +69,17 @@ func defaultMW(ctx *Context) {
 		ctx.middlewares = append(ctx.middlewares, h.middlewares...)
 	}
 
-	log.Debug("url: %s, req: %+v", ctx.r.URL, arg.Elem().Interface())
+	ctx.Next()
+}
+
+func preResponseMW(ctx *Context) {
 	ctx.Next()
 
-	if ctx.status != http.StatusOK {
-		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)
-		log.Error("url: %s err, statue: %d", ctx.r.URL, ctx.status)
-		return
+	if ctx.status == http.StatusOK {
+		err := json.NewEncoder(ctx.w).Encode(ctx.out)
+		if err != nil {
+			ctx.status = http.StatusInternalServerError
+			return
+		}
 	}
-
-	err = json.NewEncoder(ctx.w).Encode(ctx.out)
-	if err != nil {
-		ctx.status = http.StatusInternalServerError
-		return
-	}
-	log.Debug("url: %s, rsp: %+v", ctx.r.URL, ctx.out)
 }
