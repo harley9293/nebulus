@@ -16,7 +16,7 @@ func AuthMW(ctx *Context) {
 	ctx.Next()
 }
 
-func PreRequestMW(ctx *Context) {
+func DefaultMW(ctx *Context) {
 	h, ok := ctx.service.hm.data[ctx.r.URL.Path]
 	if !ok {
 		ctx.status = http.StatusNotFound
@@ -47,10 +47,6 @@ func PreRequestMW(ctx *Context) {
 
 	log.Debug("url: %s, req: %+v", ctx.r.URL, arg.Elem().Interface())
 	ctx.Next()
-}
-
-func PreResponseMW(ctx *Context) {
-	ctx.Next()
 
 	if ctx.status != http.StatusOK {
 		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)
@@ -65,7 +61,7 @@ func PreResponseMW(ctx *Context) {
 		})
 	}
 
-	err := json.NewEncoder(ctx.w).Encode(ctx.out)
+	err = json.NewEncoder(ctx.w).Encode(ctx.out)
 	if err != nil {
 		ctx.status = http.StatusInternalServerError
 		return
