@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"encoding/json"
 	"net/http"
 	"reflect"
 )
@@ -14,7 +15,7 @@ type Context struct {
 	status  int
 
 	in  reflect.Value
-	out any
+	out []byte
 
 	index       int
 	middlewares []MiddlewareFunc
@@ -32,7 +33,11 @@ func (c *Context) Next() {
 
 	if c.index >= len(c.middlewares) {
 		result := c.handler.Call([]reflect.Value{c.in, reflect.ValueOf(c)})
-		c.out = result[0].Interface()
+		var err error
+		c.out, err = json.Marshal(result[0].Interface())
+		if err != nil {
+			c.status = http.StatusInternalServerError
+		}
 		return
 	}
 

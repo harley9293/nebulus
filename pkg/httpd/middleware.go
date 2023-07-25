@@ -52,10 +52,14 @@ func RspPackMW(ctx *Context) {
 		rsp["code"] = ctx.status
 		rsp["msg"] = http.StatusText(ctx.status)
 	}
-	ctx.out = rsp
+	var err error
+	ctx.out, err = json.Marshal(rsp)
+	if err != nil {
+		ctx.status = http.StatusInternalServerError
+	}
 }
 
-func logMW(ctx *Context) {
+func LogMW(ctx *Context) {
 	log.Info("url: %s, req: %+v", ctx.r.URL, ctx.in.Interface())
 	ctx.Next()
 
@@ -66,7 +70,7 @@ func logMW(ctx *Context) {
 	log.Info("url: %s, rsp: %+v", ctx.r.URL, ctx.out)
 }
 
-func preRequestMW(ctx *Context) {
+func baseMW(ctx *Context) {
 	h, ok := ctx.service.hm.data[ctx.r.URL.Path]
 	if !ok {
 		ctx.status = http.StatusNotFound
@@ -91,19 +95,17 @@ func preRequestMW(ctx *Context) {
 	}
 
 	ctx.Next()
-}
-
-func preResponseMW(ctx *Context) {
-	ctx.Next()
 
 	if ctx.status == http.StatusOK {
-		err := json.NewEncoder(ctx.w).Encode(ctx.out)
+		_, err = ctx.w.Write(ctx.out)
 		if err != nil {
 			ctx.status = http.StatusInternalServerError
+			log.Error("ctx.w.Write() failed, err:%s", err.Error())
 			return
 		}
 	} else {
 		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)
+		log.Error("ctx.status code:%d, err:%s", ctx.status, http.StatusText(ctx.status))
 		return
 	}
 }
