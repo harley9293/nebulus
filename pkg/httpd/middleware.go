@@ -3,6 +3,7 @@ package httpd
 import (
 	"encoding/json"
 	log "github.com/harley9293/blotlog"
+	"github.com/harley9293/nebulus/pkg/errors"
 	"net/http"
 	"reflect"
 )
@@ -14,7 +15,7 @@ func AuthMW(ctx *Context) {
 	}
 
 	if ctx.Session == nil {
-		ctx.status = http.StatusUnauthorized
+		ctx.Error(http.StatusUnauthorized, errors.New(http.StatusText(http.StatusUnauthorized)))
 		return
 	}
 
@@ -55,7 +56,7 @@ func RspPackMW(ctx *Context) {
 	var err error
 	ctx.out, err = json.Marshal(rsp)
 	if err != nil {
-		ctx.status = http.StatusInternalServerError
+		ctx.Error(http.StatusInternalServerError, err)
 	}
 }
 
@@ -64,7 +65,7 @@ func LogMW(ctx *Context) {
 	ctx.Next()
 
 	if ctx.status != http.StatusOK {
-		log.Error("url: %s, err, statue: %d", ctx.r.URL, ctx.status)
+		log.Error("url: %s, err, statue: %d, msg: %s", ctx.r.URL, ctx.status, ctx.err.Error())
 		return
 	}
 	log.Info("url: %s, rsp: %s", ctx.r.URL, string(ctx.out))
@@ -73,19 +74,19 @@ func LogMW(ctx *Context) {
 func baseMW(ctx *Context) {
 	h, ok := ctx.service.hm.data[ctx.r.URL.Path]
 	if !ok {
-		ctx.status = http.StatusNotFound
+		ctx.Error(http.StatusNotFound, errors.New(http.StatusText(http.StatusNotFound)))
 		return
 	}
 
 	if ctx.r.Method != h.method {
-		ctx.status = http.StatusMethodNotAllowed
+		ctx.Error(http.StatusMethodNotAllowed, errors.New(http.StatusText(http.StatusMethodNotAllowed)))
 		return
 	}
 
 	arg := reflect.New(h.handler.Type().In(0))
 	err := json.NewDecoder(ctx.r.Body).Decode(arg.Interface())
 	if err != nil {
-		ctx.status = http.StatusBadRequest
+		ctx.Error(http.StatusBadRequest, err)
 		return
 	}
 	ctx.in = arg.Elem()
@@ -99,13 +100,11 @@ func baseMW(ctx *Context) {
 	if ctx.status == http.StatusOK {
 		_, err = ctx.w.Write(ctx.out)
 		if err != nil {
-			ctx.status = http.StatusInternalServerError
 			log.Error("ctx.w.Write() failed, err:%s", err.Error())
 			return
 		}
 	} else {
 		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)
-		log.Error("ctx.status code:%d, err:%s", ctx.status, http.StatusText(ctx.status))
 		return
 	}
 }

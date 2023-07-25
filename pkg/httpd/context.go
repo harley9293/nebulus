@@ -12,7 +12,9 @@ type Context struct {
 	r       *http.Request
 	w       http.ResponseWriter
 	service *Service
-	status  int
+
+	status int
+	err    error
 
 	in  reflect.Value
 	out []byte
@@ -36,11 +38,16 @@ func (c *Context) Next() {
 		var err error
 		c.out, err = json.Marshal(result[0].Interface())
 		if err != nil {
-			c.status = http.StatusInternalServerError
+			c.Error(http.StatusInternalServerError, err)
 		}
 		return
 	}
 
 	c.index++
 	c.middlewares[c.index-1](c)
+}
+
+func (c *Context) Error(status int, err error) {
+	c.status = status
+	c.err = err
 }
