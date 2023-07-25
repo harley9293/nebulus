@@ -114,6 +114,11 @@ func TestServiceOnTick(t *testing.T) {
 
 	Send("Test.TestPanic")
 	time.Sleep(1 * time.Second)
+
+	m.serviceByName["Test"].args = []any{1}
+	Tick()
+
+	m.serviceByName["Test"].args = []any{}
 	Tick()
 
 	err = Call("Test.TestFunc", 1, 2.0, &out1, &out2)
