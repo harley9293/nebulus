@@ -67,7 +67,7 @@ func Register(name string, h def.Handler, args ...any) error {
 		return RegisterExistError.Fill("name")
 	}
 
-	c := context{name, args, nil, &m.wg, true, h}
+	c := context{name: name, args: args, wg: &m.wg, Handler: h}
 	err := c.start()
 	if err != nil {
 		return err

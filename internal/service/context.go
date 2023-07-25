@@ -26,6 +26,7 @@ type context struct {
 	ch      chan Msg        // message queue
 	wg      *sync.WaitGroup // coroutine wait structure
 	running bool            // running status
+	stopCh  chan bool       // stop signal
 
 	def.Handler // service handle
 }
@@ -36,6 +37,7 @@ func (c *context) status() bool {
 
 func (c *context) start() error {
 	c.ch = make(chan Msg, msgCap)
+	c.stopCh = make(chan bool)
 	err := c.OnInit(c.args...)
 	if err != nil {
 		return err
@@ -47,14 +49,11 @@ func (c *context) start() error {
 }
 
 func (c *context) stop() {
-	if c.running == true {
-		close(c.ch)
-	}
-	c.running = false
+	c.stopCh <- true
 }
 
 func (c *context) run() {
-	defer c.stop()
+	defer func() { c.running = false }()
 	defer c.wg.Done()
 	defer exception.TryE()
 	for c.running {
@@ -63,6 +62,8 @@ func (c *context) run() {
 			if ok {
 				c.rev(msg)
 			}
+		case <-c.stopCh:
+			c.running = false
 		case <-time.After(16 * time.Millisecond):
 			c.OnTick()
 		}

@@ -32,7 +32,7 @@ func (h *testHandler) TestPanic() {
 func initContext(name string, args ...any) (*context, error) {
 	h := &testHandler{}
 	wg := sync.WaitGroup{}
-	c := &context{name, args, nil, &wg, true, h}
+	c := &context{name: name, args: args, wg: &wg, Handler: h}
 	err := c.start()
 	if err == nil {
 		wg.Add(1)
@@ -64,6 +64,7 @@ func TestContextStop(t *testing.T) {
 	}
 
 	c.stop()
+	time.Sleep(1 * time.Second)
 
 	if c.status() {
 		t.Fatal("test should not be running")
