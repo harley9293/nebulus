@@ -63,11 +63,11 @@ func LogMW(ctx *Context) {
 	log.Info("url: %s, req: %+v", ctx.r.URL, ctx.in.Interface())
 	ctx.Next()
 
-	if ctx.status == http.StatusOK {
+	if ctx.status != http.StatusOK {
 		log.Error("url: %s, err, statue: %d", ctx.r.URL, ctx.status)
 		return
 	}
-	log.Info("url: %s, rsp: %+v", ctx.r.URL, ctx.out)
+	log.Info("url: %s, rsp: %s", ctx.r.URL, string(ctx.out))
 }
 
 func baseMW(ctx *Context) {
