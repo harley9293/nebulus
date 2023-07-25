@@ -40,14 +40,17 @@ func (c *context) start() error {
 	if err != nil {
 		return err
 	}
+	c.running = true
 	log.Info("%s service started successfully", c.name)
 	go c.run()
 	return nil
 }
 
 func (c *context) stop() {
+	if c.running == true {
+		close(c.ch)
+	}
 	c.running = false
-	close(c.ch)
 }
 
 func (c *context) run() {
