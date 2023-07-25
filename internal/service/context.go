@@ -3,6 +3,7 @@ package service
 import (
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/harley9293/blotlog"
@@ -25,45 +26,44 @@ type context struct {
 	args    []any           // service startup parameters for automatic recovery
 	ch      chan Msg        // message queue
 	wg      *sync.WaitGroup // coroutine wait structure
-	running bool            // running status
-	stopCh  chan bool       // stop signal
+	running atomic.Value    // running status
 
 	def.Handler // service handle
 }
 
 func (c *context) status() bool {
-	return c.running
+	return c.running.Load().(bool)
 }
 
 func (c *context) start() error {
 	c.ch = make(chan Msg, msgCap)
-	c.stopCh = make(chan bool)
 	err := c.OnInit(c.args...)
 	if err != nil {
 		return err
 	}
-	c.running = true
+	c.running.Store(true)
 	log.Info("%s service started successfully", c.name)
 	go c.run()
 	return nil
 }
 
 func (c *context) stop() {
-	c.stopCh <- true
+	if c.running.Load().(bool) {
+		close(c.ch)
+	}
+	c.running.Store(false)
 }
 
 func (c *context) run() {
-	defer func() { c.running = false }()
+	defer func() { c.stop() }()
 	defer c.wg.Done()
 	defer exception.TryE()
-	for c.running {
+	for c.running.Load().(bool) {
 		select {
 		case msg, ok := <-c.ch:
 			if ok {
 				c.rev(msg)
 			}
-		case <-c.stopCh:
-			c.running = false
 		case <-time.After(16 * time.Millisecond):
 			c.OnTick()
 		}
