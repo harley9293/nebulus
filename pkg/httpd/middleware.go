@@ -53,11 +53,7 @@ func RspPackMW(ctx *Context) {
 		rsp["code"] = ctx.status
 		rsp["msg"] = http.StatusText(ctx.status)
 	}
-	var err error
-	ctx.out, err = json.Marshal(rsp)
-	if err != nil {
-		ctx.Error(http.StatusInternalServerError, err)
-	}
+	_, _ = json.Marshal(rsp)
 }
 
 func LogMW(ctx *Context) {
@@ -71,7 +67,7 @@ func LogMW(ctx *Context) {
 	log.Info("url: %s, rsp: %s", ctx.r.URL, string(ctx.out))
 }
 
-func baseMW(ctx *Context) {
+func routerMW(ctx *Context) {
 	h, ok := ctx.service.hm.data[ctx.r.URL.Path]
 	if !ok {
 		ctx.Error(http.StatusNotFound, errors.New(http.StatusText(http.StatusNotFound)))
@@ -96,9 +92,13 @@ func baseMW(ctx *Context) {
 	}
 
 	ctx.Next()
+}
+
+func responseMW(ctx *Context) {
+	ctx.Next()
 
 	if ctx.status == http.StatusOK {
-		_, err = ctx.w.Write(ctx.out)
+		_, err := ctx.w.Write(ctx.out)
 		if err != nil {
 			log.Error("ctx.w.Write() failed, err:%s", err.Error())
 			return

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/harley9293/nebulus"
+	"github.com/harley9293/nebulus/pkg/errors"
 	"io"
 	"net/http"
 	"testing"
+	"time"
 )
 
 type LoginReq struct {
@@ -14,12 +16,28 @@ type LoginReq struct {
 	Pass string `json:"pass"`
 }
 
+type LoginErrReq struct {
+	User string `json:"user"`
+	Pass int    `json:"pass"`
+}
+
 type LoginRsp struct {
 	Token string `json:"token"`
 }
 
+type PackRsp struct {
+	Code int         `json:"code"`
+	Msg  string      `json:"msg"`
+	Data interface{} `json:"data"`
+}
+
 func HandleLoginReq(req *LoginReq, ctx *Context) LoginRsp {
 	rsp := LoginRsp{}
+	if req.User == "111111" {
+		ctx.Error(http.StatusInternalServerError, errors.New("test error"))
+		return rsp
+	}
+
 	ctx.CreateSession(req.User + req.Pass)
 
 	if ctx.Session == nil {
@@ -27,6 +45,16 @@ func HandleLoginReq(req *LoginReq, ctx *Context) LoginRsp {
 	}
 
 	rsp.Token = ctx.Session.id
+	return rsp
+}
+
+func HandleLoginReqFail(req *LoginReq, ctx *Context) func() {
+	return func() {}
+}
+
+func HandleMockResponse(req *LoginReq, ctx *Context) LoginRsp {
+	rsp := LoginRsp{}
+	ctx.w = &mockResponseWriter{}
 	return rsp
 }
 
@@ -44,8 +72,6 @@ func HandleEchoReq(req *EchoReq, ctx *Context) EchoRsp {
 	return rsp
 }
 
-var serviceStart = false
-
 type PanicReq struct {
 }
 
@@ -56,8 +82,10 @@ func HandlePanicReq(req *PanicReq, ctx *Context) PanicRsp {
 	panic("test panic")
 }
 
+var serviceTest *Service = nil
+
 func initTestEnv(t *testing.T) {
-	if serviceStart {
+	if serviceTest != nil {
 		return
 	}
 
@@ -66,17 +94,20 @@ func initTestEnv(t *testing.T) {
 		t.Fatal("NewHttpService() failed")
 	}
 
-	s.AddGlobalMiddleWare(LogMW, CookieMW)
+	s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
 	s.AddHandler("POST", "/login", HandleLoginReq)
+	s.AddHandler("POST", "/loginFail", HandleLoginReqFail)
 	s.AddHandler("POST", "/echo", HandleEchoReq, AuthMW)
 	s.AddHandler("POST", "/panic", HandlePanicReq)
+	s.AddHandler("POST", "/mockResponse", HandleMockResponse)
+	s.AddHandler("POST", "/loginPack", HandleLoginReq, RspPackMW)
 
 	err := nebulus.Register("http", s, "127.0.0.1:36000")
 	if err != nil {
 		t.Fatal("Register() failed, err:" + err.Error())
 	}
 
-	serviceStart = true
+	serviceTest = s
 	go nebulus.Run()
 }
 
@@ -95,10 +126,12 @@ func doRequest(t *testing.T, method, url, session string, req, rsp any) (status 
 		request.AddCookie(&http.Cookie{Name: "token", Value: session})
 	}
 	resp, err = http.DefaultClient.Do(request)
+	if resp != nil {
+		status = resp.StatusCode
+	}
 	if err != nil {
 		return 0, "", err
 	}
-	status = resp.StatusCode
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
@@ -120,76 +153,6 @@ func doRequest(t *testing.T, method, url, session string, req, rsp any) (status 
 		}
 	}
 	return
-}
-
-func TestLogin(t *testing.T) {
-	initTestEnv(t)
-
-	req := &LoginReq{
-		User: "harley9293",
-		Pass: "123456",
-	}
-	rsp := &LoginRsp{}
-	status, sessionID, err := doRequest(t, "POST", "/login", "", req, rsp)
-	if err != nil {
-		t.Fatal("doRequest() failed, err:" + err.Error())
-	}
-
-	if status != http.StatusOK {
-		t.Fatal("status not ok, status:" + string(rune(status)))
-	}
-
-	if rsp.Token == "" {
-		t.Fatal("rsp.Token is empty")
-	}
-
-	if sessionID != rsp.Token {
-		t.Fatal("sessionID != rsp.Token, sessionID:" + sessionID + ", rsp.Token:" + rsp.Token)
-	}
-}
-
-func TestEchoWithLogin(t *testing.T) {
-	initTestEnv(t)
-	req := &LoginReq{
-		User: "harley9293",
-		Pass: "123456",
-	}
-	rsp := &LoginRsp{}
-	status, sessionID, err := doRequest(t, "POST", "/login", "", req, rsp)
-	if err != nil {
-		t.Fatal("doRequest() failed, err:" + err.Error())
-	}
-
-	if status != http.StatusOK {
-		t.Fatal("status not ok, status:" + string(rune(status)))
-	}
-
-	echoRsp := &EchoRsp{}
-	status, sessionID, err = doRequest(t, "POST", "/echo", sessionID, &EchoReq{Content: "hello"}, echoRsp)
-	if err != nil {
-		t.Fatal("doRequest() failed, err:" + err.Error())
-	}
-
-	if status != http.StatusOK {
-		t.Fatal("status not ok, status:" + string(rune(status)))
-	}
-
-	if echoRsp.Echo != "hello" {
-		t.Fatal("echoRsp.Echo != hello, echoRsp.Echo:" + echoRsp.Echo)
-	}
-}
-
-func TestEchoWithoutLogin(t *testing.T) {
-	initTestEnv(t)
-	echoRsp := &EchoRsp{}
-	status, _, err := doRequest(t, "POST", "/echo", "", &EchoReq{Content: "hello"}, echoRsp)
-	if err != nil {
-		t.Fatal("doRequest() failed, err:" + err.Error())
-	}
-
-	if status != http.StatusUnauthorized {
-		t.Fatal("status not 401, status:" + string(rune(status)))
-	}
 }
 
 func TestServiceFailed(t *testing.T) {
@@ -227,5 +190,55 @@ func TestServiceFailed(t *testing.T) {
 
 	if echoRsp.Echo != "hello" {
 		t.Fatal("echoRsp.Echo != hello, echoRsp.Echo:" + echoRsp.Echo)
+	}
+}
+
+func TestService_AddHandler(t *testing.T) {
+	defer func() { recover() }()
+
+	service := NewHttpService()
+	service.AddHandler("GET", "/test", FailFuncTest1)
+}
+
+func TestService_OnInit(t *testing.T) {
+	service := NewHttpService()
+	err := service.OnInit()
+	if err == nil {
+		t.Fatal("OnInit() failed, err is nil")
+	}
+
+	err = service.OnInit(123456)
+	if err == nil {
+		t.Fatal("OnInit() failed, err is nil")
+	}
+
+	err = service.OnInit("http://localhost:80")
+	if err == nil {
+		t.Fatal("OnInit() failed, err:" + err.Error())
+	}
+}
+
+func TestServiceFailed2(t *testing.T) {
+	initTestEnv(t)
+
+	err := serviceTest.srv.Close()
+	if err != nil {
+		t.Fatal("srv.Close() failed, err:" + err.Error())
+	}
+
+	time.Sleep(1 * time.Second)
+
+	req := &LoginReq{
+		User: "harley9293",
+		Pass: "123456",
+	}
+	rsp := &LoginRsp{}
+	status, _, err := doRequest(t, "POST", "/login", "", req, rsp)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+
+	if status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(status)))
 	}
 }

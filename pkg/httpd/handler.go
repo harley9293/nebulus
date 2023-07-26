@@ -9,6 +9,7 @@ var HandlerTypeError = errors.New("add handler type error, got:%T")
 var HandlerParamSizeError = errors.New("handler num in: %d, num out: %d")
 var HandlerParamPointerError = errors.New("handler param must be pointer")
 var HandlerSecondParamTypeError = errors.New("handler second param must be *Context")
+var HandlerRepeatedError = errors.New("handler path already exists, path:%s")
 
 type handlerData struct {
 	path        string
@@ -47,7 +48,11 @@ func handlerVerify(value reflect.Value) error {
 	return nil
 }
 
-func (m *handlerMng) add(method, path string, f any, middlewares []MiddlewareFunc) error {
+func (m *handlerMng) add(method, path string, f any, middlewares ...MiddlewareFunc) error {
+	if _, ok := m.data[path]; ok {
+		return HandlerRepeatedError.Fill(path)
+	}
+
 	fn := reflect.ValueOf(f)
 	err := handlerVerify(fn)
 	if err != nil {

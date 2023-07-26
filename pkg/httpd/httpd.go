@@ -26,12 +26,12 @@ type Service struct {
 
 func NewHttpService() *Service {
 	service := &Service{hm: newHandlerMng(), sm: newSessionMng()}
-	service.AddGlobalMiddleWare(baseMW)
+	service.AddGlobalMiddleWare(responseMW, routerMW)
 	return service
 }
 
 func (m *Service) AddHandler(method, path string, f any, middleware ...MiddlewareFunc) {
-	err := m.hm.add(method, path, f, middleware)
+	err := m.hm.add(method, path, f, middleware...)
 	if err != nil {
 		panic(err)
 	}

@@ -29,10 +29,6 @@ func (c *Context) CreateSession(key string) {
 }
 
 func (c *Context) Next() {
-	if c.status != http.StatusOK {
-		return
-	}
-
 	if c.index >= len(c.middlewares) {
 		result := c.handler.Call([]reflect.Value{c.in, reflect.ValueOf(c)})
 		var err error
