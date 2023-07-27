@@ -80,6 +80,8 @@ Call("ServiceName.FuncName", 1, 2, "3", &rsp1, &rsp2)
 
 You can easily create a built-in HTTP service
 
+The framework automatically parses request parameters into predefined structures, eliminating the need for further parameter parsing and packaging in the business handler, allowing you to focus on business logic
+
 ```go
 package http
 
@@ -133,5 +135,3 @@ func Example() {
 	nebulus.Run()
 }
 ```
-
-The framework automatically parses request parameters into predefined structures, eliminating the need for further parameter parsing and packaging in the business handler, allowing you to focus on business logic
