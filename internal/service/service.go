@@ -46,6 +46,7 @@ func Stop() {
 		return true
 	})
 	m.wg.Wait()
+	m.serviceByName = sync.Map{}
 }
 
 func Tick() {
