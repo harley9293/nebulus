@@ -29,59 +29,66 @@ var NotRegisterError = errors.New("%s service is not registered")
 var m *mgr
 
 type mgr struct {
-	serviceByName map[string]*context
+	serviceByName sync.Map
 	wg            sync.WaitGroup
 }
 
 func init() {
 	m = new(mgr)
-	m.serviceByName = make(map[string]*context)
 }
 
-func Stop() {
-	for _, v := range m.serviceByName {
-		v.stop()
-	}
+//=============== tick goroutine =================
 
+func Stop() {
+	m.serviceByName.Range(func(key, value interface{}) bool {
+		v := value.(*context)
+		v.stop()
+		return true
+	})
 	m.wg.Wait()
-	m.serviceByName = make(map[string]*context)
 }
 
 func Tick() {
-	for _, v := range m.serviceByName {
+	m.serviceByName.Range(func(key, value interface{}) bool {
+		v := value.(*context)
 		if !v.status() {
 			log.Warn("%s Service is attempting to restart", v.name)
 			err := v.start()
 			if err != nil {
 				log.Error("%s Service restart failed: %s", v.name, err.Error())
-				continue
+			} else {
+				m.wg.Add(1)
 			}
-			m.wg.Add(1)
 		}
-	}
+		return true
+	})
 }
 
-func Register(name string, h def.Handler, args ...any) error {
-	_, ok := m.serviceByName[name]
-	if ok {
-		return RegisterExistError.Fill("name")
-	}
+//=============== other goroutine =================
 
+func Register(name string, h def.Handler, args ...any) error {
 	c := context{name: name, args: args, wg: &m.wg, Handler: h}
 	err := c.start()
 	if err != nil {
 		return err
 	}
-	m.serviceByName[name] = &c
+
+	_, loaded := m.serviceByName.LoadOrStore(name, &c)
+	if loaded {
+		c.stop() // Stop the context if a service by the same name already exists
+		return RegisterExistError.Fill(name)
+	}
+
 	m.wg.Add(1)
 	return nil
 }
 
 func Destroy(name string) {
-	s, ok := m.serviceByName[name]
+	value, ok := m.serviceByName.Load(name) // Load returns the value stored in the map for a key.
 	if ok {
+		s := value.(*context)
 		s.stop()
-		delete(m.serviceByName, name)
+		m.serviceByName.Delete(name) // Delete removes the value for a key from the map.
 	}
 }
 
@@ -94,12 +101,13 @@ func Send(f string, in ...any) {
 	name := l[0]
 	cmd := l[1]
 
-	c, ok := m.serviceByName[name]
+	value, ok := m.serviceByName.Load(name)
 	if !ok {
 		log.Warn("%s service is not registered, send failed", name)
 		return
 	}
 
+	c := value.(*context)
 	var msg Msg
 	msg.Cmd = cmd
 	msg.InOut = in
@@ -116,13 +124,14 @@ func Call(f string, inout ...any) error {
 	name := l[0]
 	cmd := l[1]
 
-	c, ok := m.serviceByName[name]
+	value, ok := m.serviceByName.Load(name)
 	if !ok {
 		err := NotRegisterError.Fill(name)
 		log.Warn(err.Error())
 		return err
 	}
 
+	c := value.(*context)
 	var msg Msg
 	msg.Cmd = cmd
 	msg.InOut = inout
