@@ -132,6 +132,6 @@ func Example() {
 
 	nebulus.Run()
 }
-
-The framework automatically parses request parameters into predefined structures, eliminating the need for further parameter parsing and packaging in the business handler, allowing you to focus on business logic.
 ```
+
+The framework automatically parses request parameters into predefined structures, eliminating the need for further parameter parsing and packaging in the business handler, allowing you to focus on business logic
