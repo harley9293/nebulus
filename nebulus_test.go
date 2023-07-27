@@ -15,37 +15,46 @@ func (m *Service) Print(req string) string {
 	return "echo: " + req
 }
 
+var running bool = false
+
+func InitEnv() {
+	if !running {
+		running = true
+		go Run()
+	}
+}
+
 func TestRegister(t *testing.T) {
+	InitEnv()
 	defer Destroy("echo")
 	err := Register("echo", new(Service))
 	if err != nil {
 		t.Fatal("Register() failed, err:" + err.Error())
 	}
 
-	go Run()
 	time.Sleep(1 * time.Second)
 }
 
 func TestSend(t *testing.T) {
+	InitEnv()
 	defer Destroy("echo")
 	err := Register("echo", new(Service))
 	if err != nil {
 		t.Fatal("Register() failed, err:" + err.Error())
 	}
 
-	go Run()
 	time.Sleep(1 * time.Second)
 	Send("echo.Print", "hello world")
 }
 
 func TestCall(t *testing.T) {
+	InitEnv()
 	defer Destroy("echo")
 	err := Register("echo", new(Service))
 	if err != nil {
 		t.Fatal("Register() failed, err:" + err.Error())
 	}
 
-	go Run()
 	time.Sleep(1 * time.Second)
 	var rsp string
 	err = Call("echo.Print", "hello world", &rsp)
@@ -58,6 +67,7 @@ func TestCall(t *testing.T) {
 }
 
 func TestKill(t *testing.T) {
+	InitEnv()
 	svr.kill <- syscall.SIGTERM
 
 	time.Sleep(1 * time.Second)
