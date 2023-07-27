@@ -80,10 +80,32 @@ func routerMW(ctx *Context) {
 	}
 
 	arg := reflect.New(h.handler.Type().In(0))
-	err := json.NewDecoder(ctx.r.Body).Decode(arg.Interface())
-	if err != nil {
-		ctx.Error(http.StatusBadRequest, err)
-		return
+	contentType := ctx.r.Header.Get("Content-Type")
+	switch contentType {
+	case "application/json":
+		err := json.NewDecoder(ctx.r.Body).Decode(arg.Interface())
+		if err != nil {
+			ctx.Error(http.StatusBadRequest, err)
+			return
+		}
+	default:
+		err := ctx.r.ParseForm()
+		if err != nil {
+			ctx.Error(http.StatusBadRequest, err)
+			return
+		}
+		result := make(map[string]string)
+		for key, values := range ctx.r.Form {
+			if len(values) > 0 {
+				result[key] = values[0] // only take the first value for each key
+			}
+		}
+		formJson, _ := json.Marshal(result)
+		err = json.Unmarshal(formJson, arg.Interface())
+		if err != nil {
+			ctx.Error(http.StatusBadRequest, err)
+			return
+		}
 	}
 	ctx.in = arg.Elem()
 	ctx.handler = h.handler

@@ -1,8 +1,11 @@
 package httpd
 
 import (
+	"encoding/json"
 	"github.com/harley9293/nebulus/pkg/errors"
+	"io"
 	"net/http"
+	"net/url"
 	"testing"
 )
 
@@ -21,7 +24,38 @@ func (m *mockResponseWriter) Write(b []byte) (int, error) {
 func (m *mockResponseWriter) WriteHeader(statusCode int) {
 }
 
-func TestBaseMW(t *testing.T) {
+func doRequestGet(path string, param map[string]string, rsp any, urlExt string) (int, error) {
+	params := url.Values{}
+	for k, v := range param {
+		params.Add(k, v)
+	}
+
+	reqURL := "http://localhost:36000" + path + "?" + params.Encode() + urlExt
+
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
+	if resp.StatusCode == http.StatusOK {
+		err = json.NewDecoder(resp.Body).Decode(rsp)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return resp.StatusCode, nil
+}
+
+func TestRouterMW(t *testing.T) {
 	initTestEnv(t)
 
 	req := &LoginReq{
@@ -41,6 +75,30 @@ func TestBaseMW(t *testing.T) {
 	}
 
 	status, _, _ = doRequest(t, "POST", "/login", "", &LoginErrReq{"harley9293", 123456}, rsp)
+	if status != http.StatusBadRequest {
+		t.Fatalf("expect status %d, got %d", http.StatusBadRequest, status)
+	}
+
+	rsp = &LoginRsp{}
+	status, err = doRequestGet("/loginGet", map[string]string{"user": "admin", "pass": "123456"}, rsp, "")
+	if err != nil {
+		t.Fatalf("doRequestGet() failed, err:" + err.Error())
+	}
+
+	if status != http.StatusOK {
+		t.Fatalf("expect status %d, got %d", http.StatusOK, status)
+	}
+
+	if rsp.Token == "" {
+		t.Fatalf("expect token not empty, got empty")
+	}
+
+	status, _ = doRequestGet("/loginGet", map[string]string{"user": "admin", "pass": "123456"}, rsp, "Hello%2Gworld")
+	if status != http.StatusBadRequest {
+		t.Fatalf("expect status %d, got %d", http.StatusBadRequest, status)
+	}
+
+	status, _ = doRequestGet("/loginGetFail", map[string]string{"user": "admin", "pass": "123456"}, rsp, "")
 	if status != http.StatusBadRequest {
 		t.Fatalf("expect status %d, got %d", http.StatusBadRequest, status)
 	}

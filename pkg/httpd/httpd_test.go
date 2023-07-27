@@ -52,6 +52,10 @@ func HandleLoginReqFail(req *LoginReq, ctx *Context) func() {
 	return func() {}
 }
 
+func HandleLoginGetReqFail(req *LoginErrReq, ctx *Context) func() {
+	return func() {}
+}
+
 func HandleMockResponse(req *LoginReq, ctx *Context) LoginRsp {
 	rsp := LoginRsp{}
 	ctx.w = &mockResponseWriter{}
@@ -96,6 +100,8 @@ func initTestEnv(t *testing.T) {
 
 	s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
 	s.AddHandler("POST", "/login", HandleLoginReq)
+	s.AddHandler("GET", "/loginGet", HandleLoginReq)
+	s.AddHandler("GET", "/loginGetFail", HandleLoginGetReqFail)
 	s.AddHandler("POST", "/loginFail", HandleLoginReqFail)
 	s.AddHandler("POST", "/echo", HandleEchoReq, AuthMW)
 	s.AddHandler("POST", "/panic", HandlePanicReq)
@@ -125,6 +131,7 @@ func doRequest(t *testing.T, method, url, session string, req, rsp any) (status 
 	if session != "" {
 		request.AddCookie(&http.Cookie{Name: "token", Value: session})
 	}
+	request.Header.Set("Content-Type", "application/json")
 	resp, err = http.DefaultClient.Do(request)
 	if resp != nil {
 		status = resp.StatusCode
