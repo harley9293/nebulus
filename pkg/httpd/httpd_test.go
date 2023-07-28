@@ -2,7 +2,6 @@ package httpd
 
 import (
 	"github.com/harley9293/nebulus"
-	"github.com/harley9293/nebulus/pkg/errors"
 	"net/http"
 	"testing"
 	"time"
@@ -28,154 +27,11 @@ func NewTestHttpService(name string, host string, f func(s *Service)) {
 type EmptyTestStruct struct {
 }
 
-type LoginReq struct {
-	User string `json:"user"`
-	Pass string `json:"pass"`
-}
-
-type LoginErrReq struct {
-	User string `json:"user"`
-	Pass int    `json:"pass"`
-}
-
-type LoginRsp struct {
-	Token string `json:"token"`
-}
-
-type PackRsp struct {
-	Code int         `json:"code"`
-	Msg  string      `json:"msg"`
-	Data interface{} `json:"data"`
-}
-
-func HandleLoginReq(req *LoginReq, ctx *Context) LoginRsp {
-	rsp := LoginRsp{}
-	if req.User == "111111" {
-		ctx.Error(http.StatusInternalServerError, errors.New("test error"))
-		return rsp
-	}
-
-	ctx.CreateSession(req.User + req.Pass)
-
-	if ctx.Session == nil {
-		return rsp
-	}
-
-	rsp.Token = ctx.Session.id
-	return rsp
-}
-
-func HandleLoginReqFail(req *LoginReq, ctx *Context) string {
-	return ""
-}
-
-func HandleLoginGetReqFail(req *LoginErrReq, ctx *Context) string {
-	return ""
-}
-
-func HandleMockResponse(req *LoginReq, ctx *Context) LoginRsp {
-	rsp := LoginRsp{}
-	ctx.w = &mockResponseWriter{}
-	return rsp
-}
-
-type EchoReq struct {
-	Content string `json:"content"`
-}
-
-type EchoRsp struct {
-	Echo string `json:"echo"`
-}
-
-func HandleEchoReq(req *EchoReq, ctx *Context) EchoRsp {
-	rsp := EchoRsp{}
-	rsp.Echo = req.Content
-	return rsp
-}
-
-type PanicReq struct {
-}
-
-type PanicRsp struct {
-}
-
-func HandlePanicReq(req *PanicReq, ctx *Context) PanicRsp {
-	panic("test panic")
-}
-
-var serviceTest *Service = nil
-
-func initTestEnv(t *testing.T) {
-	if serviceTest != nil {
-		return
-	}
-
-	s := NewHttpService()
-	if s == nil {
-		t.Fatal("NewHttpService() failed")
-	}
-
-	s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
-	s.AddHandler("POST", "/login", HandleLoginReq)
-	s.AddHandler("GET", "/loginGet", HandleLoginReq)
-	s.AddHandler("GET", "/loginGetFail", HandleLoginGetReqFail)
-	s.AddHandler("POST", "/loginFail", HandleLoginReqFail)
-	s.AddHandler("POST", "/echo", HandleEchoReq, AuthMW)
-	s.AddHandler("POST", "/panic", HandlePanicReq)
-	s.AddHandler("POST", "/mockResponse", HandleMockResponse)
-	s.AddHandler("POST", "/loginPack", HandleLoginReq, RspPackMW)
-
-	err := nebulus.Register("http", s, "127.0.0.1:36000")
-	if err != nil {
-		t.Fatal("Register() failed, err:" + err.Error())
-	}
-
-	serviceTest = s
-}
-
-func TestServiceFailed(t *testing.T) {
-	//initTestEnv(t)
-	//
-	//req := &LoginReq{
-	//	User: "harley9293",
-	//	Pass: "123456",
-	//}
-	//rsp := &LoginRsp{}
-	//status, sessionID, err := doRequest(t, "POST", "/login", "", req, rsp)
-	//if err != nil {
-	//	t.Fatal("doRequest() failed, err:" + err.Error())
-	//}
-	//
-	//if status != http.StatusOK {
-	//	t.Fatal("status not ok, status:" + string(rune(status)))
-	//}
-	//
-	//panicRsp := &PanicRsp{}
-	//_, _, err = doRequest(t, "POST", "/panic", "", &PanicReq{}, panicRsp)
-	//if err == nil {
-	//	t.Fatal("doRequest() failed, err is nil")
-	//}
-	//
-	//echoRsp := &EchoRsp{}
-	//status, sessionID, err = doRequest(t, "POST", "/echo", sessionID, &EchoReq{Content: "hello"}, echoRsp)
-	//if err != nil {
-	//	t.Fatal("doRequest() failed, err:" + err.Error())
-	//}
-	//
-	//if status != http.StatusOK {
-	//	t.Fatal("status not ok, status:" + string(rune(status)))
-	//}
-	//
-	//if echoRsp.Echo != "hello" {
-	//	t.Fatal("echoRsp.Echo != hello, echoRsp.Echo:" + echoRsp.Echo)
-	//}
-}
-
-func TestService_AddHandler(t *testing.T) {
+func TestService_AddHandler_Fail(t *testing.T) {
 	defer func() { recover() }()
 
 	service := NewHttpService()
-	service.AddHandler("GET", "/test", FailFuncTest1)
+	service.AddHandler("GET", "/test", 1)
 }
 
 func TestService_OnInit(t *testing.T) {
@@ -196,27 +52,32 @@ func TestService_OnInit(t *testing.T) {
 	}
 }
 
-func TestServiceFailed2(t *testing.T) {
-	//initTestEnv(t)
-	//
-	//err := serviceTest.srv.Close()
-	//if err != nil {
-	//	t.Fatal("srv.Close() failed, err:" + err.Error())
-	//}
-	//
-	//time.Sleep(1 * time.Second)
-	//
-	//req := &LoginReq{
-	//	User: "harley9293",
-	//	Pass: "123456",
-	//}
-	//rsp := &LoginRsp{}
-	//status, _, err := doRequest(t, "POST", "/login", "", req, rsp)
-	//if err != nil {
-	//	t.Fatal("doRequest() failed, err:" + err.Error())
-	//}
-	//
-	//if status != http.StatusOK {
-	//	t.Fatal("status not ok, status:" + string(rune(status)))
-	//}
+func TestServiceFailed(t *testing.T) {
+	s := NewHttpService()
+	s.AddHandler("GET", "/test", func(req *EmptyTestStruct, ctx *Context) string {
+		return "hello world"
+	})
+	err := nebulus.Register("Test", s, "127.0.0.1:30011")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nebulus.Destroy("Test")
+	time.Sleep(10 * time.Millisecond)
+	err = s.srv.Close()
+	if err != nil {
+		t.Fatal("srv.Close() failed, err:" + err.Error())
+	}
+	time.Sleep(1 * time.Second)
+
+	client := NewClient("http://127.0.0.1:30011")
+	err = client.Get("/test", nil)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(client.status)))
+	}
+	if client.strRsp != "hello world" {
+		t.Fatal("rsp not ok, rsp:" + client.strRsp)
+	}
 }

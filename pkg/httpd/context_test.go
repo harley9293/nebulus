@@ -23,34 +23,6 @@ func TestContext_Error(t *testing.T) {
 	}
 }
 
-//func TestContext_Next(t *testing.T) {
-//	initTestEnv(t)
-//
-//	echoRsp := &EchoRsp{}
-//	status, _, _ := doRequest(t, "POST", "/echo", "", &EchoReq{Content: "hello"}, echoRsp)
-//	if status == http.StatusOK {
-//		t.Fatal("status not ok")
-//	}
-//
-//	req := &LoginReq{
-//		User: "harley9293",
-//		Pass: "123456",
-//	}
-//	rsp := &LoginRsp{}
-//	status, _, err := doRequest(t, "POST", "/login", "", req, rsp)
-//	if err != nil {
-//		t.Fatal("doRequest() failed, err:" + err.Error())
-//	}
-//	if status != http.StatusOK {
-//		t.Fatal("status not ok, status:" + string(rune(status)))
-//	}
-//
-//	status, _, err = doRequest(t, "POST", "/loginFail", "", req, rsp)
-//	if status == http.StatusOK {
-//		t.Fatal("status not ok")
-//	}
-//}
-
 func TestContext_Next_RspString(t *testing.T) {
 	NewTestHttpService("Test", "127.0.0.1:30000", func(s *Service) {
 		s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)

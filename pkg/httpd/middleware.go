@@ -44,16 +44,17 @@ func CorsMW(ctx *Context) {
 func RspPackMW(ctx *Context) {
 	ctx.Next()
 
-	rsp := make(map[string]interface{})
+	ctx.w.Header().Set("Content-Type", "application/json")
+	rsp := make(map[string]any)
 	if ctx.status == http.StatusOK {
-		rsp["code"] = 0
+		rsp["code"] = ctx.status
 		rsp["msg"] = "success"
-		rsp["data"] = ctx.out
+		rsp["data"] = string(ctx.out)
 	} else {
 		rsp["code"] = ctx.status
 		rsp["msg"] = http.StatusText(ctx.status)
 	}
-	_, _ = json.Marshal(rsp)
+	ctx.out, _ = json.Marshal(rsp)
 }
 
 func LogMW(ctx *Context) {

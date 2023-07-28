@@ -2,59 +2,76 @@ package httpd
 
 import "testing"
 
-func SuccessFuncTest(req *LoginReq, ctx *Context) LoginRsp {
-	return LoginRsp{}
-}
-
-func FailFuncTest1(req *LoginReq) {
-}
-
-func FailFuncTest2(req LoginReq, ctx *Context) LoginRsp {
-	return LoginRsp{}
-}
-
-func FailFuncTest3(req *LoginReq, ctx *LoginReq) LoginRsp {
-	return LoginRsp{}
-}
-
-func FailFuncTest4(req *LoginReq, ctx *Context) func() {
-	return func() {}
-}
-
-func TestHandler(t *testing.T) {
+func TestHandler_Success(t *testing.T) {
 	mng := newHandlerMng()
+	err := mng.add("GET", "/hello", func(req *EmptyTestStruct, ctx *Context) string {
+		return ""
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
-	err := mng.add("GET", "/hello", SuccessFuncTest)
+func TestHandler_HandlerTypeError(t *testing.T) {
+	mng := newHandlerMng()
+	err := mng.add("GET", "/hello", 1)
+	if err == nil {
+		t.Fatal("add handler error")
+	}
+}
+
+func TestHandler_HandlerParamSizeError(t *testing.T) {
+	mng := newHandlerMng()
+	err := mng.add("GET", "/hello", func() string {
+		return ""
+	})
+	if err == nil {
+		t.Fatal("add handler error")
+	}
+}
+
+func TestHandler_HandlerParamPointerError(t *testing.T) {
+	mng := newHandlerMng()
+	err := mng.add("GET", "/hello", func(req EmptyTestStruct, ctx Context) string {
+		return ""
+	})
+	if err == nil {
+		t.Fatal("add handler error")
+	}
+}
+
+func TestHandler_HandlerSecondParamTypeError(t *testing.T) {
+	mng := newHandlerMng()
+	err := mng.add("GET", "/hello", func(req *EmptyTestStruct, ctx *EmptyTestStruct) string {
+		return ""
+	})
+	if err == nil {
+		t.Fatal("add handler error")
+	}
+}
+
+func TestHandler_HandlerReturnTypeError(t *testing.T) {
+	mng := newHandlerMng()
+	err := mng.add("GET", "/hello", func(req *EmptyTestStruct, ctx *Context) int {
+		return 0
+	})
+	if err == nil {
+		t.Fatal("add handler error")
+	}
+}
+
+func TestHandler_HandlerRepeatedError(t *testing.T) {
+	mng := newHandlerMng()
+	err := mng.add("GET", "/hello", func(req *EmptyTestStruct, ctx *Context) string {
+		return ""
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = mng.add("GET", "/hello", SuccessFuncTest)
-	if err == nil {
-		t.Fatal(err)
-	}
-
-	err = mng.add("GET", "/test", FailFuncTest1)
-	if err == nil {
-		t.Fatal("add handler error")
-	}
-
-	err = mng.add("GET", "/test", FailFuncTest2)
-	if err == nil {
-		t.Fatal("add handler error")
-	}
-
-	err = mng.add("GET", "/test", FailFuncTest3)
-	if err == nil {
-		t.Fatal("add handler error")
-	}
-
-	err = mng.add("GET", "/test", 1)
-	if err == nil {
-		t.Fatal("add handler error")
-	}
-
-	err = mng.add("GET", "/test", FailFuncTest4)
+	err = mng.add("GET", "/hello", func(req *EmptyTestStruct, ctx *Context) string {
+		return ""
+	})
 	if err == nil {
 		t.Fatal("add handler error")
 	}

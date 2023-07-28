@@ -34,7 +34,7 @@ func (c *Client) Get(path string, params map[string]string) error {
 
 	c.method = "GET"
 	c.url = c.host + path + "?" + query.Encode()
-	c.body = nil
+	c.body = bytes.NewBuffer([]byte{})
 
 	return c.do()
 }
@@ -53,10 +53,7 @@ func (c *Client) Post(path string, body any) error {
 }
 
 func (c *Client) do() error {
-	req, err := http.NewRequest(c.method, c.url, c.body)
-	if err != nil {
-		return err
-	}
+	req, _ := http.NewRequest(c.method, c.url, c.body)
 
 	for _, cookie := range c.cookies {
 		req.AddCookie(cookie)
@@ -79,11 +76,12 @@ func (c *Client) do() error {
 		c.cookies = resp.Cookies()
 	}
 
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+
 	if resp.Header.Get("Content-Type") == "application/json" {
-		c.jsonRsp = json.NewDecoder(resp.Body)
+		c.jsonRsp = json.NewDecoder(bytes.NewReader(bodyBytes))
 	} else if resp.Header.Get("Content-Type") == "text/plain" {
-		body, _ := ioutil.ReadAll(resp.Body)
-		c.strRsp = string(body)
+		c.strRsp = string(bodyBytes)
 	}
 
 	return nil

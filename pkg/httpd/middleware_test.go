@@ -1,6 +1,8 @@
 package httpd
 
 import (
+	"bytes"
+	"github.com/harley9293/nebulus"
 	"github.com/harley9293/nebulus/pkg/errors"
 	"net/http"
 	"testing"
@@ -21,117 +23,225 @@ func (m *mockResponseWriter) Write(b []byte) (int, error) {
 func (m *mockResponseWriter) WriteHeader(statusCode int) {
 }
 
-func TestRouterMW(t *testing.T) {
-	//initTestEnv(t)
-	//
-	//req := &LoginReq{
-	//	User: "harley9293",
-	//	Pass: "123456",
-	//}
-	//rsp := &LoginRsp{}
-	//
-	//status, _, err := doRequest(t, "GET", "/base", "", req, rsp)
-	//if status != http.StatusNotFound {
-	//	t.Fatalf("expect status %d, got %d, err: %s", http.StatusNotFound, status, err.Error())
-	//}
-	//
-	//status, _, _ = doRequest(t, "GET", "/login", "", req, rsp)
-	//if status != http.StatusMethodNotAllowed {
-	//	t.Fatalf("expect status %d, got %d", http.StatusMethodNotAllowed, status)
-	//}
-	//
-	//status, _, _ = doRequest(t, "POST", "/login", "", &LoginErrReq{"harley9293", 123456}, rsp)
-	//if status != http.StatusBadRequest {
-	//	t.Fatalf("expect status %d, got %d", http.StatusBadRequest, status)
-	//}
-	//
-	//rsp = &LoginRsp{}
-	//status, err = doRequestGet("/loginGet", map[string]string{"user": "admin", "pass": "123456"}, rsp, "")
-	//if err != nil {
-	//	t.Fatalf("doRequestGet() failed, err:" + err.Error())
-	//}
-	//
-	//if status != http.StatusOK {
-	//	t.Fatalf("expect status %d, got %d", http.StatusOK, status)
-	//}
-	//
-	//if rsp.Token == "" {
-	//	t.Fatalf("expect token not empty, got empty")
-	//}
-	//
-	//status, _ = doRequestGet("/loginGet", map[string]string{"user": "admin", "pass": "123456"}, rsp, "Hello%2Gworld")
-	//if status != http.StatusBadRequest {
-	//	t.Fatalf("expect status %d, got %d", http.StatusBadRequest, status)
-	//}
-	//
-	//status, _ = doRequestGet("/loginGetFail", map[string]string{"user": "admin", "pass": "123456"}, rsp, "")
-	//if status != http.StatusBadRequest {
-	//	t.Fatalf("expect status %d, got %d", http.StatusBadRequest, status)
-	//}
+func TestRouterMW_NotFound(t *testing.T) {
+	NewTestHttpService("Test", "127.0.0.1:30006", func(s *Service) {
+		s.AddHandler("POST", "/test", func(testStruct *EmptyTestStruct, ctx *Context) string {
+			return ""
+		})
+	})
+	defer nebulus.Destroy("Test")
+	client := NewClient("http://127.0.0.1:30006")
+	err := client.Post("/test2", &EmptyTestStruct{})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusNotFound {
+		t.Fatal("status not statusNotFound, status:" + string(rune(client.status)))
+	}
 }
 
-func TestResponseMW(t *testing.T) {
-	//initTestEnv(t)
-	//
-	//req := &LoginReq{
-	//	User: "harley9293",
-	//	Pass: "123456",
-	//}
-	//rsp := &LoginRsp{}
-	//_, _, err := doRequest(t, "POST", "/mockResponse", "", req, rsp)
-	//if err == nil {
-	//	t.Fatal("expect error, got nil")
-	//}
+func TestRouterMW_MethodNotAllowed(t *testing.T) {
+	NewTestHttpService("Test", "127.0.0.1:30007", func(s *Service) {
+		s.AddHandler("POST", "/test", func(testStruct *EmptyTestStruct, ctx *Context) string {
+			return ""
+		})
+	})
+	defer nebulus.Destroy("Test")
+	client := NewClient("http://127.0.0.1:30007")
+	err := client.Get("/test", nil)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusMethodNotAllowed {
+		t.Fatal("status not statusMethodNotAllowed, status:" + string(rune(client.status)))
+	}
 }
 
-func TestAuthMW(t *testing.T) {
-	//initTestEnv(t)
-	//req := &LoginReq{
-	//	User: "harley9293",
-	//	Pass: "123456",
-	//}
-	//rsp := &LoginRsp{}
-	//status, sessionID, err := doRequest(t, "POST", "/login", "", req, rsp)
-	//if err != nil {
-	//	t.Fatal("doRequest() failed, err:" + err.Error())
-	//}
-	//
-	//if status != http.StatusOK {
-	//	t.Fatal("status not ok, status:" + string(rune(status)))
-	//}
-	//
-	//echoRsp := &EchoRsp{}
-	//status, sessionID, err = doRequest(t, "POST", "/echo", sessionID, &EchoReq{Content: "hello"}, echoRsp)
-	//if err != nil {
-	//	t.Fatal("doRequest() failed, err:" + err.Error())
-	//}
-	//
-	//if status != http.StatusOK {
-	//	t.Fatal("status not ok, status:" + string(rune(status)))
-	//}
-	//
-	//if echoRsp.Echo != "hello" {
-	//	t.Fatal("echoRsp.Echo != hello, echoRsp.Echo:" + echoRsp.Echo)
-	//}
+func TestRouterMW_RequestDecodeError(t *testing.T) {
+	type TestReq struct {
+		Test int `json:"test"`
+	}
+	type ErrorReq struct {
+		Test string `json:"test"`
+	}
+	NewTestHttpService("Test", "127.0.0.1:30008", func(s *Service) {
+		s.AddHandler("POST", "/test", func(req *TestReq, ctx *Context) string {
+			return ""
+		})
+		s.AddHandler("GET", "/test2", func(req *TestReq, ctx *Context) string {
+			return ""
+		})
+	})
+	defer nebulus.Destroy("Test")
+
+	client := NewClient("http://127.0.0.1:30008")
+	err := client.Post("/test", &ErrorReq{Test: "1"})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusBadRequest {
+		t.Fatal("status not statusBadRequest, status:" + string(rune(client.status)))
+	}
+
+	err = client.Get("/test2", map[string]string{"test": "1"})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusBadRequest {
+		t.Fatal("status not statusBadRequest, status:" + string(rune(client.status)))
+	}
+}
+
+func TestRouterMW_UrlParamDecodeSuccess(t *testing.T) {
+	type TestReq struct {
+		Test string `json:"test"`
+	}
+	NewTestHttpService("Test", "127.0.0.1:30009", func(s *Service) {
+		s.AddHandler("GET", "/test", func(req *TestReq, ctx *Context) string {
+			return "hello " + req.Test
+		})
+	})
+	defer nebulus.Destroy("Test")
+
+	client := NewClient("http://127.0.0.1:30009")
+	err := client.Get("/test", map[string]string{"test": "world"})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusOK {
+		t.Fatal("status not statusOK, status:" + string(rune(client.status)))
+	}
+	if client.strRsp != "hello world" {
+		t.Fatal("rsp not ok, rsp:" + client.strRsp)
+	}
+}
+
+func TestRouterMW_UrlParamDecodeError(t *testing.T) {
+	NewTestHttpService("Test", "127.0.0.1:30010", func(s *Service) {
+		s.AddHandler("GET", "/test", func(req *EmptyTestStruct, ctx *Context) string {
+			return "hello"
+		})
+	})
+	defer nebulus.Destroy("Test")
+
+	client := NewClient("http://127.0.0.1:30010")
+	client.method = "GET"
+	client.url = client.host + "/test" + "?" + "Hello%2Gworld"
+	client.body = bytes.NewBuffer([]byte{})
+	err := client.do()
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusBadRequest {
+		t.Fatal("status not statusBadRequest, status:" + string(rune(client.status)))
+	}
+}
+
+func TestResponseMW_WriteResponseError(t *testing.T) {
+	NewTestHttpService("Test", "127.0.0.1:30005", func(s *Service) {
+		s.AddHandler("POST", "/test", func(testStruct *EmptyTestStruct, ctx *Context) string {
+			ctx.w = &mockResponseWriter{}
+			return ""
+		})
+	})
+	defer nebulus.Destroy("Test")
+	client := NewClient("http://127.0.0.1:30005")
+	_ = client.Post("/test", &EmptyTestStruct{})
+}
+
+func TestAuthMW_Fail(t *testing.T) {
+	NewTestHttpService("Test", "127.0.0.1:30003", func(s *Service) {
+		s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
+		s.AddHandler("POST", "/test", func(testStruct *EmptyTestStruct, ctx *Context) string {
+			return "test"
+		}, AuthMW)
+	})
+	defer nebulus.Destroy("Test")
+	client := NewClient("http://127.0.0.1:30003")
+	err := client.Post("/test", &EmptyTestStruct{})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusUnauthorized {
+		t.Fatal("status not statusUnauthorized, status:" + string(rune(client.status)))
+	}
+}
+
+func TestAuthMW_Success(t *testing.T) {
+	type LoginReq struct {
+		User string `json:"user"`
+		Pass string `json:"pass"`
+	}
+	NewTestHttpService("Test", "127.0.0.1:30002", func(s *Service) {
+		s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
+		s.AddHandler("POST", "/login", func(req *LoginReq, ctx *Context) string {
+			ctx.CreateSession(req.User + req.Pass)
+			return ""
+		})
+		s.AddHandler("POST", "/test", func(testStruct *EmptyTestStruct, ctx *Context) string {
+			return "test"
+		}, AuthMW)
+	})
+	defer nebulus.Destroy("Test")
+
+	client := NewClient("http://127.0.0.1:30002")
+	err := client.Post("/login", &LoginReq{"harley9293", "123456"})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(client.status)))
+	}
+
+	err = client.Post("/test", &EmptyTestStruct{})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(client.status)))
+	}
+	if client.strRsp != "test" {
+		t.Fatal("rsp not ok, rsp:" + client.strRsp)
+	}
 }
 
 func TestRspPackMW(t *testing.T) {
-	//initTestEnv(t)
-	//req := &LoginReq{
-	//	User: "harley9293",
-	//	Pass: "123456",
-	//}
-	//rsp := &PackRsp{}
-	//status, _, err := doRequest(t, "POST", "/loginPack", "", req, rsp)
-	//if status != 200 {
-	//	t.Fatalf("expect status %d, got %d, err: %s", 200, status, err.Error())
-	//}
-	//if err != nil {
-	//	t.Fatalf("expect err nil, got %s", err.Error())
-	//}
-	//
-	//status, _, err = doRequest(t, "POST", "/loginPack", "", &LoginReq{"111111", "123456"}, rsp)
-	//if status != http.StatusInternalServerError {
-	//	t.Fatalf("expect status %d, got %d, err: %s", http.StatusInternalServerError, status, err.Error())
-	//}
+	type TestReq struct {
+		Ok bool `json:"ok"`
+	}
+	NewTestHttpService("Test", "127.0.0.1:30004", func(s *Service) {
+		s.AddHandler("POST", "/test", func(req *TestReq, ctx *Context) string {
+			if req.Ok {
+				return "true"
+			}
+			ctx.Error(http.StatusInternalServerError, errors.New("test error"))
+			return ""
+		}, RspPackMW)
+	})
+	defer nebulus.Destroy("Test")
+
+	client := NewClient("http://127.0.0.1:30004")
+	err := client.Post("/test", &TestReq{Ok: true})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(client.status)))
+	}
+	result := make(map[string]any)
+	err = client.jsonRsp.Decode(&result)
+	if err != nil {
+		t.Fatal("decode rsp failed, err:" + err.Error())
+	}
+	if result["code"].(float64) != 200 || result["msg"].(string) != "success" || result["data"].(string) != "true" {
+		t.Fatal("rsp not ok")
+	}
+
+	err = client.Post("/test", &TestReq{Ok: false})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusInternalServerError {
+		t.Fatal("status not ok, status:" + string(rune(client.status)))
+	}
 }
