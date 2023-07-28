@@ -42,7 +42,6 @@ func (c *context) start() error {
 		return err
 	}
 	c.running.Store(true)
-	log.Info("%s service started successfully", c.name)
 	go c.run()
 	return nil
 }
@@ -55,6 +54,7 @@ func (c *context) stop() {
 }
 
 func (c *context) run() {
+	log.Info("%s service started successfully", c.name)
 	defer func() { c.stop() }()
 	defer c.wg.Done()
 	defer exception.TryE()
