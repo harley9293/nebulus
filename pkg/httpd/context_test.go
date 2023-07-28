@@ -48,4 +48,9 @@ func TestContext_Next(t *testing.T) {
 	if status == http.StatusOK {
 		t.Fatal("status not ok")
 	}
+
+	status, _, err = doRequest(t, "GET", "/complexStruct", "", &EmptyStruct{}, &EmptyStruct{})
+	if status == http.StatusOK {
+		t.Fatal("status not ok")
+	}
 }

@@ -17,6 +17,10 @@ func FailFuncTest3(req *LoginReq, ctx *LoginReq) LoginRsp {
 	return LoginRsp{}
 }
 
+func FailFuncTest4(req *LoginReq, ctx *Context) func() {
+	return func() {}
+}
+
 func TestHandler(t *testing.T) {
 	mng := newHandlerMng()
 
@@ -46,6 +50,11 @@ func TestHandler(t *testing.T) {
 	}
 
 	err = mng.add("GET", "/test", 1)
+	if err == nil {
+		t.Fatal("add handler error")
+	}
+
+	err = mng.add("GET", "/test", FailFuncTest4)
 	if err == nil {
 		t.Fatal("add handler error")
 	}

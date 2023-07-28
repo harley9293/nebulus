@@ -31,10 +31,15 @@ func (c *Context) CreateSession(key string) {
 func (c *Context) Next() {
 	if c.index >= len(c.middlewares) {
 		result := c.handler.Call([]reflect.Value{c.in, reflect.ValueOf(c)})
-		var err error
-		c.out, err = json.Marshal(result[0].Interface())
-		if err != nil {
-			c.Error(http.StatusInternalServerError, err)
+
+		if result[0].Kind() == reflect.Struct {
+			var err error
+			c.out, err = json.Marshal(result[0].Interface())
+			if err != nil {
+				c.Error(http.StatusInternalServerError, err)
+			}
+		} else {
+			c.out = []byte(result[0].String())
 		}
 		return
 	}

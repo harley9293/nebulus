@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+type EmptyStruct struct {
+}
+
 type LoginReq struct {
 	User string `json:"user"`
 	Pass string `json:"pass"`
@@ -31,6 +34,14 @@ type PackRsp struct {
 	Data interface{} `json:"data"`
 }
 
+type ComplexStructRsp struct {
+	Ch chan int `json:"ch"`
+}
+
+func HandleReturnComplexStruct(req *EmptyStruct, ctx *Context) ComplexStructRsp {
+	return ComplexStructRsp{Ch: make(chan int)}
+}
+
 func HandleLoginReq(req *LoginReq, ctx *Context) LoginRsp {
 	rsp := LoginRsp{}
 	if req.User == "111111" {
@@ -48,12 +59,12 @@ func HandleLoginReq(req *LoginReq, ctx *Context) LoginRsp {
 	return rsp
 }
 
-func HandleLoginReqFail(req *LoginReq, ctx *Context) func() {
-	return func() {}
+func HandleLoginReqFail(req *LoginReq, ctx *Context) string {
+	return ""
 }
 
-func HandleLoginGetReqFail(req *LoginErrReq, ctx *Context) func() {
-	return func() {}
+func HandleLoginGetReqFail(req *LoginErrReq, ctx *Context) string {
+	return ""
 }
 
 func HandleMockResponse(req *LoginReq, ctx *Context) LoginRsp {
@@ -107,6 +118,7 @@ func initTestEnv(t *testing.T) {
 	s.AddHandler("POST", "/panic", HandlePanicReq)
 	s.AddHandler("POST", "/mockResponse", HandleMockResponse)
 	s.AddHandler("POST", "/loginPack", HandleLoginReq, RspPackMW)
+	s.AddHandler("GET", "/complexStruct", HandleReturnComplexStruct)
 
 	err := nebulus.Register("http", s, "127.0.0.1:36000")
 	if err != nil {
