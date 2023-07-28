@@ -2,10 +2,16 @@ package nebulus
 
 import (
 	"github.com/harley9293/nebulus/pkg/def"
-	"syscall"
 	"testing"
 	"time"
 )
+
+func TestMain(m *testing.M) {
+	go Run()
+	time.Sleep(10 * time.Millisecond)
+	m.Run()
+	Shutdown()
+}
 
 type Service struct {
 	def.DefaultHandler
@@ -15,47 +21,36 @@ func (m *Service) Print(req string) string {
 	return "echo: " + req
 }
 
-var running bool = false
-
-func InitEnv() {
-	if !running {
-		running = true
-		go Run()
-	}
-}
-
 func TestRegister(t *testing.T) {
-	InitEnv()
-	defer Destroy("echo")
 	err := Register("echo", new(Service))
 	if err != nil {
 		t.Fatal("Register() failed, err:" + err.Error())
 	}
 
-	time.Sleep(1 * time.Second)
+	Destroy("echo")
+	time.Sleep(10 * time.Millisecond)
 }
 
 func TestSend(t *testing.T) {
-	InitEnv()
-	defer Destroy("echo")
 	err := Register("echo", new(Service))
 	if err != nil {
 		t.Fatal("Register() failed, err:" + err.Error())
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Millisecond)
 	Send("echo.Print", "hello world")
+
+	Destroy("echo")
+	time.Sleep(10 * time.Millisecond)
 }
 
 func TestCall(t *testing.T) {
-	InitEnv()
-	defer Destroy("echo")
 	err := Register("echo", new(Service))
 	if err != nil {
 		t.Fatal("Register() failed, err:" + err.Error())
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Millisecond)
 	var rsp string
 	err = Call("echo.Print", "hello world", &rsp)
 	if err != nil {
@@ -64,11 +59,11 @@ func TestCall(t *testing.T) {
 	if rsp != "echo: hello world" {
 		t.Fatal("rsp != echo: hello world, rsp:" + rsp)
 	}
+
+	Destroy("echo")
+	time.Sleep(10 * time.Millisecond)
 }
 
-func TestKill(t *testing.T) {
-	InitEnv()
-	svr.kill <- syscall.SIGTERM
-
-	time.Sleep(1 * time.Second)
+func TestShutdown(t *testing.T) {
+	Shutdown()
 }

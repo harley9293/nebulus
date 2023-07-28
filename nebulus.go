@@ -59,6 +59,11 @@ func Run() {
 	svr.stop()
 }
 
+func Shutdown() {
+	svr.kill <- syscall.SIGTERM
+	time.Sleep(1 * time.Second)
+}
+
 func (s *server) stop() {
 	service.Stop()
 	log.Info("nebulus stop")

@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"github.com/harley9293/nebulus"
 	"github.com/harley9293/nebulus/pkg/errors"
 	"net/http"
 	"testing"
@@ -22,35 +23,77 @@ func TestContext_Error(t *testing.T) {
 	}
 }
 
-func TestContext_Next(t *testing.T) {
-	initTestEnv(t)
+//func TestContext_Next(t *testing.T) {
+//	initTestEnv(t)
+//
+//	echoRsp := &EchoRsp{}
+//	status, _, _ := doRequest(t, "POST", "/echo", "", &EchoReq{Content: "hello"}, echoRsp)
+//	if status == http.StatusOK {
+//		t.Fatal("status not ok")
+//	}
+//
+//	req := &LoginReq{
+//		User: "harley9293",
+//		Pass: "123456",
+//	}
+//	rsp := &LoginRsp{}
+//	status, _, err := doRequest(t, "POST", "/login", "", req, rsp)
+//	if err != nil {
+//		t.Fatal("doRequest() failed, err:" + err.Error())
+//	}
+//	if status != http.StatusOK {
+//		t.Fatal("status not ok, status:" + string(rune(status)))
+//	}
+//
+//	status, _, err = doRequest(t, "POST", "/loginFail", "", req, rsp)
+//	if status == http.StatusOK {
+//		t.Fatal("status not ok")
+//	}
+//}
 
-	echoRsp := &EchoRsp{}
-	status, _, _ := doRequest(t, "POST", "/echo", "", &EchoReq{Content: "hello"}, echoRsp)
-	if status == http.StatusOK {
-		t.Fatal("status not ok")
-	}
+func TestContext_Next_RspString(t *testing.T) {
+	NewTestHttpService("Test", "127.0.0.1:30000", func(s *Service) {
+		s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
+		s.AddHandler("POST", "/test", func(req *EmptyTestStruct, ctx *Context) string {
+			return "hello"
+		})
+	})
+	defer nebulus.Destroy("Test")
 
-	req := &LoginReq{
-		User: "harley9293",
-		Pass: "123456",
-	}
-	rsp := &LoginRsp{}
-	status, _, err := doRequest(t, "POST", "/login", "", req, rsp)
+	client := NewClient("http://127.0.0.1:30000")
+	err := client.Post("/test", &EmptyTestStruct{})
 	if err != nil {
 		t.Fatal("doRequest() failed, err:" + err.Error())
 	}
-	if status != http.StatusOK {
-		t.Fatal("status not ok, status:" + string(rune(status)))
+
+	if client.status != http.StatusOK {
+		t.Fatal("doRequest() failed, status:" + string(rune(client.status)))
 	}
 
-	status, _, err = doRequest(t, "POST", "/loginFail", "", req, rsp)
-	if status == http.StatusOK {
-		t.Fatal("status not ok")
+	if client.strRsp != "hello" {
+		t.Fatal("doRequest() failed, rsp:" + client.strRsp)
+	}
+}
+
+func TestContext_Next_RspJsonMarshalError(t *testing.T) {
+	NewTestHttpService("Test", "127.0.0.1:30001", func(s *Service) {
+		type ComplexStructRsp struct {
+			Ch chan int `json:"ch"`
+		}
+		s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
+		s.AddHandler("POST", "/test", func(req *EmptyTestStruct, ctx *Context) ComplexStructRsp {
+			return ComplexStructRsp{Ch: make(chan int)}
+		})
+	})
+	defer nebulus.Destroy("Test")
+
+	client := NewClient("http://127.0.0.1:30001")
+	err := client.Post("/test", &EmptyTestStruct{})
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
 	}
 
-	status, _, err = doRequest(t, "GET", "/complexStruct", "", &EmptyStruct{}, &EmptyStruct{})
-	if status == http.StatusOK {
-		t.Fatal("status not ok")
+	if client.status != http.StatusInternalServerError {
+		t.Fatal("doRequest() failed, status:" + string(rune(client.status)))
 	}
 }

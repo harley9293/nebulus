@@ -33,12 +33,14 @@ func (c *Context) Next() {
 		result := c.handler.Call([]reflect.Value{c.in, reflect.ValueOf(c)})
 
 		if result[0].Kind() == reflect.Struct {
+			c.w.Header().Set("Content-Type", "application/json")
 			var err error
 			c.out, err = json.Marshal(result[0].Interface())
 			if err != nil {
 				c.Error(http.StatusInternalServerError, err)
 			}
 		} else {
+			c.w.Header().Set("Content-Type", "text/plain")
 			c.out = []byte(result[0].String())
 		}
 		return
