@@ -135,6 +135,10 @@ func (c *context) send(msg Msg) {
 func (c *context) call(msg Msg) ([]reflect.Value, error) {
 	c.send(msg)
 
-	rsp := <-msg.Done
-	return rsp.data, rsp.err
+	select {
+	case rsp := <-msg.Done:
+		return rsp.data, rsp.err
+	case <-time.After(5 * time.Second):
+		return nil, errors.New("call timeout")
+	}
 }

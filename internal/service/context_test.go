@@ -29,6 +29,10 @@ func (h *testHandler) TestPanic() {
 	panic("test panic")
 }
 
+func (h *testHandler) TestTimeout() {
+	time.Sleep(10 * time.Hour)
+}
+
 func initContext(name string, args ...any) (*context, error) {
 	h := &testHandler{}
 	wg := sync.WaitGroup{}
@@ -167,5 +171,24 @@ func TestContextCall(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("TestFunc should not be called successfully")
+	}
+}
+
+func TestCall_Timeout(t *testing.T) {
+	c, err := initContext("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// test func timeout
+	done := make(chan Rsp)
+	_, err = c.call(Msg{
+		Cmd:   "TestTimeout",
+		InOut: []any{},
+		Sync:  true,
+		Done:  done,
+	})
+	if err == nil {
+		t.Fatal("TestTimeout should not be called successfully")
 	}
 }
