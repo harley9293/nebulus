@@ -90,13 +90,25 @@ func TestContextLoadWarn(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < msgCap; i++ {
-		c.send(Msg{
-			Cmd: "TestLoad",
-		})
+	for i := 0; i < msgCap*1.2; i++ {
+		go func() {
+			done := make(chan Rsp)
+			_, _ = c.call(Msg{
+				Cmd:   "TestTimeout",
+				InOut: []any{},
+				Sync:  true,
+				Done:  done,
+			})
+		}()
+		go func() {
+			c.send(Msg{
+				Cmd:   "TestLoad",
+				InOut: []any{},
+			})
+		}()
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(6 * time.Second)
 }
 
 func TestContextCall(t *testing.T) {

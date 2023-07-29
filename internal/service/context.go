@@ -126,6 +126,14 @@ func (c *context) parse(f reflect.Value, params []any) (in []reflect.Value, err 
 }
 
 func (c *context) send(msg Msg) {
+	if len(c.ch) >= cap(c.ch) {
+		log.Error("%s service message queue is full, message discarded: %s, %+v", c.name, msg.Cmd, msg.InOut)
+		if msg.Sync {
+			msg.Done <- Rsp{err: errors.New("message queue is full")}
+		}
+		return
+	}
+
 	c.ch <- msg
 	if len(c.ch) > int(float64(cap(c.ch))*warnLimit) {
 		log.Warn("service load is too high, name: %s, cur: %d, total: %d", c.name, len(c.ch), cap(c.ch))

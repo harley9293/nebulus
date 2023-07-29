@@ -16,7 +16,6 @@ type Rsp struct {
 
 type Msg struct {
 	Cmd   string
-	Req   any
 	InOut []any
 	Sync  bool
 	Done  chan Rsp
