@@ -4,7 +4,9 @@ go 1.18
 
 require (
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/go-sql-driver/mysql v1.7.1
 	github.com/harley9293/blotlog v0.0.0-20230523070620-e7e922f2ef94
+	github.com/jmoiron/sqlx v1.3.5
 )
 
 require (
