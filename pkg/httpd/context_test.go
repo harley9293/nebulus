@@ -8,7 +8,7 @@ import (
 )
 
 func TestContext_CreateSession(t *testing.T) {
-	ctx := &Context{service: NewHttpService()}
+	ctx := &Context{service: NewHttpService(&Config{})}
 	ctx.CreateSession("hello")
 	if ctx.Session == nil {
 		t.Fatal("create session error")
@@ -16,7 +16,7 @@ func TestContext_CreateSession(t *testing.T) {
 }
 
 func TestContext_Error(t *testing.T) {
-	ctx := &Context{service: NewHttpService()}
+	ctx := &Context{service: NewHttpService(&Config{})}
 	ctx.Error(404, errors.New("test error"))
 	if ctx.status != 404 || ctx.err.Error() != "test error" {
 		t.Fatal("error error")

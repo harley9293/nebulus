@@ -15,7 +15,7 @@ func TestMain(m *testing.M) {
 }
 
 func NewTestHttpService(name string, host string, f func(s *Service)) {
-	s := NewHttpService()
+	s := NewHttpService(&Config{})
 	f(s)
 	err := nebulus.Register(name, s, host)
 	if err != nil {
@@ -30,12 +30,12 @@ type EmptyTestStruct struct {
 func TestService_AddHandler_Fail(t *testing.T) {
 	defer func() { recover() }()
 
-	service := NewHttpService()
+	service := NewHttpService(&Config{})
 	service.AddHandler("GET", "/test", 1)
 }
 
 func TestService_OnInit(t *testing.T) {
-	service := NewHttpService()
+	service := NewHttpService(&Config{})
 	err := service.OnInit()
 	if err == nil {
 		t.Fatal("OnInit() failed, err is nil")
@@ -53,7 +53,7 @@ func TestService_OnInit(t *testing.T) {
 }
 
 func TestServiceFailed(t *testing.T) {
-	s := NewHttpService()
+	s := NewHttpService(&Config{})
 	s.AddHandler("GET", "/test", func(req *EmptyTestStruct, ctx *Context) string {
 		return "hello world"
 	})

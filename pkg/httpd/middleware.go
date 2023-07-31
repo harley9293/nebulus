@@ -28,7 +28,7 @@ func CookieMW(ctx *Context) {
 	if ctx.Session != nil {
 		http.SetCookie(ctx.w, &http.Cookie{
 			Name:  "token",
-			Value: ctx.Session.id,
+			Value: ctx.Session.Get("id"),
 		})
 	}
 }

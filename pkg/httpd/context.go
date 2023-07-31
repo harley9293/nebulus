@@ -7,7 +7,7 @@ import (
 )
 
 type Context struct {
-	Session *Session
+	Session Session
 
 	r       *http.Request
 	w       http.ResponseWriter

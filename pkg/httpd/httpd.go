@@ -22,10 +22,12 @@ type Service struct {
 	globalMiddlewares []MiddlewareFunc
 	hm                *handlerMng
 	sm                *sessionMng
+	cfg               *Config
 }
 
-func NewHttpService() *Service {
-	service := &Service{hm: newHandlerMng(), sm: newSessionMng()}
+func NewHttpService(config *Config) *Service {
+	config.Fill()
+	service := &Service{hm: newHandlerMng(), sm: newSessionMng(config.SType, config.SExpireTime, config.Redis), cfg: config}
 	service.AddGlobalMiddleWare(responseMW, routerMW)
 	return service
 }

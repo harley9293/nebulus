@@ -3,9 +3,9 @@ package httpd
 import "testing"
 
 func TestSession(t *testing.T) {
-	mng := newSessionMng()
+	mng := newSessionMng(SessionTypeLocal, 24*3600, nil)
 	session := mng.new("hello")
-	if mng.get(session.id) == nil {
+	if mng.get(session.Get("id")) == nil {
 		t.Fatal("session not found")
 	}
 
@@ -18,7 +18,7 @@ func TestSession(t *testing.T) {
 		t.Fatal("session set/get error")
 	}
 
-	if session.Get("test2") != nil {
+	if session.Get("test2") != "" {
 		t.Fatal("session set/get error")
 	}
 }
