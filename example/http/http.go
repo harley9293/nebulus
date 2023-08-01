@@ -33,9 +33,9 @@ func HandleGetInfoReq(req *GetInfoReq, ctx *httpd.Context) GetInfoRsp {
 }
 
 func Example() {
-	s := httpd.NewHttpService(&httpd.Config{})
+	s := httpd.NewService(&httpd.Config{})
 	if s == nil {
-		panic("NewHttpService() failed")
+		panic("NewService() failed")
 	}
 
 	s.AddGlobalMiddleWare(httpd.LogMW, httpd.CookieMW, httpd.CorsMW)
