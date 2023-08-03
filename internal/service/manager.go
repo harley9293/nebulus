@@ -31,6 +31,7 @@ var m *Mgr
 type Mgr struct {
 	serviceByName map[string]*service
 	wg            sync.WaitGroup
+	rwLock        sync.RWMutex
 
 	ctx       context.Context
 	cancelAll context.CancelFunc
@@ -39,16 +40,22 @@ type Mgr struct {
 func init() {
 	m = &Mgr{serviceByName: make(map[string]*service)}
 	m.ctx, m.cancelAll = context.WithCancel(context.Background())
+
+	go monitorLoop(m.ctx, &m.wg)
 }
 
 func Stop() {
 	m.cancelAll()
 	m.wg.Wait()
+
+	m.rwLock.Lock()
 	m.serviceByName = make(map[string]*service)
+	m.rwLock.Unlock()
 }
 
 func Register(name string, h def.Handler, args ...any) error {
-	check(name)
+	m.rwLock.Lock()
+	defer m.rwLock.Unlock()
 	_, ok := m.serviceByName[name]
 	if ok {
 		return RegisterExistError.Fill(name)
@@ -67,6 +74,8 @@ func Register(name string, h def.Handler, args ...any) error {
 }
 
 func Destroy(name string) {
+	m.rwLock.Lock()
+	defer m.rwLock.Unlock()
 	c, ok := m.serviceByName[name]
 	if ok {
 		c.cancel()
@@ -84,7 +93,8 @@ func Send(f string, in ...any) {
 	name := l[0]
 	cmd := l[1]
 
-	check(name)
+	m.rwLock.RLock()
+	defer m.rwLock.RUnlock()
 	c, ok := m.serviceByName[name]
 	if !ok {
 		log.Warn("%s service is not registered, send failed", name)
@@ -107,7 +117,8 @@ func Call(f string, inout ...any) error {
 	name := l[0]
 	cmd := l[1]
 
-	check(name)
+	m.rwLock.RLock()
+	defer m.rwLock.RUnlock()
 	c, ok := m.serviceByName[name]
 	if !ok {
 		err := NotRegisterError.Fill(name)
@@ -130,17 +141,4 @@ func Call(f string, inout ...any) error {
 		}
 	}
 	return err
-}
-
-func check(name string) {
-	c, ok := m.serviceByName[name]
-	if ok {
-		select {
-		case <-c.exit:
-			log.Info("%s service is deleted by check", name)
-			delete(m.serviceByName, name)
-		default:
-			break
-		}
-	}
 }
