@@ -48,14 +48,15 @@ func Stop() {
 }
 
 func Register(name string, h def.Handler, args ...any) error {
+	check(name)
 	_, ok := m.serviceByName[name]
 	if ok {
 		return RegisterExistError.Fill(name)
 	}
 
-	c := &service{name: name, args: args, wg: &m.wg, Handler: h, ch: make(chan Msg, msgCap)}
+	c := &service{name: name, wg: &m.wg, Handler: h, ch: make(chan Msg, msgCap), exit: make(chan bool, 1)}
 	c.ctx, c.cancel = context.WithCancel(m.ctx)
-	err := c.OnInit(c.args...)
+	err := c.OnInit(args...)
 	if err != nil {
 		return err
 	}
@@ -69,6 +70,7 @@ func Destroy(name string) {
 	c, ok := m.serviceByName[name]
 	if ok {
 		c.cancel()
+		log.Info("%s service is deleted by destroy", name)
 		delete(m.serviceByName, name)
 	}
 }
@@ -82,6 +84,7 @@ func Send(f string, in ...any) {
 	name := l[0]
 	cmd := l[1]
 
+	check(name)
 	c, ok := m.serviceByName[name]
 	if !ok {
 		log.Warn("%s service is not registered, send failed", name)
@@ -104,6 +107,7 @@ func Call(f string, inout ...any) error {
 	name := l[0]
 	cmd := l[1]
 
+	check(name)
 	c, ok := m.serviceByName[name]
 	if !ok {
 		err := NotRegisterError.Fill(name)
@@ -126,4 +130,17 @@ func Call(f string, inout ...any) error {
 		}
 	}
 	return err
+}
+
+func check(name string) {
+	c, ok := m.serviceByName[name]
+	if ok {
+		select {
+		case <-c.exit:
+			log.Info("%s service is deleted by check", name)
+			delete(m.serviceByName, name)
+		default:
+			break
+		}
+	}
 }

@@ -38,9 +38,9 @@ func initContext(name string, args ...any) (*service, error) {
 	h := &testHandler{}
 	wg := sync.WaitGroup{}
 	ctx, _ := context.WithCancel(context.Background())
-	c := &service{name: name, args: args, wg: &wg, Handler: h, ch: make(chan Msg, msgCap)}
+	c := &service{name: name, wg: &wg, Handler: h, ch: make(chan Msg, msgCap)}
 	c.ctx, c.cancel = context.WithCancel(ctx)
-	err := c.OnInit(c.args...)
+	err := c.OnInit(args...)
 	if err != nil {
 		return nil, err
 	}

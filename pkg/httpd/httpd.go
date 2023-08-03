@@ -16,8 +16,10 @@ type MiddlewareFunc func(*Context)
 type Service struct {
 	def.DefaultHandler
 
-	srv *http.Server
-	err chan error
+	srv      *http.Server
+	address  string
+	serveMux *http.ServeMux
+	err      chan error
 
 	globalMiddlewares []MiddlewareFunc
 	hm                *handlerMng
@@ -52,9 +54,10 @@ func (m *Service) OnInit(args ...any) error {
 	if !ok {
 		return InitArgsTypeError.Fill(reflect.TypeOf(args[0]))
 	}
+	m.address = address
 
-	serveMux := http.NewServeMux()
-	serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	m.serveMux = http.NewServeMux()
+	m.serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		c := &Context{
 			r:           r,
 			w:           w,
@@ -64,7 +67,7 @@ func (m *Service) OnInit(args ...any) error {
 		}
 		c.Next()
 	})
-	m.srv = &http.Server{Addr: address, Handler: serveMux}
+	m.srv = &http.Server{Addr: m.address, Handler: m.serveMux}
 	m.err = make(chan error, 1)
 
 	go func() {
@@ -84,10 +87,14 @@ func (m *Service) OnInit(args ...any) error {
 
 func (m *Service) OnTick() {
 	select {
-	case err, ok := <-m.err:
-		if ok {
-			close(m.err)
-			panic(err)
-		}
+	case err := <-m.err:
+		panic(err)
 	}
+}
+
+func (m *Service) OnPanic() {
+	m.srv = &http.Server{Addr: m.address, Handler: m.serveMux}
+	go func() {
+		m.err <- m.srv.ListenAndServe()
+	}()
 }

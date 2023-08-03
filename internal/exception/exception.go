@@ -7,15 +7,14 @@ import (
 	log "github.com/harley9293/blotlog"
 )
 
-func TryE() any {
+func TryE() {
 	errs := recover()
 	if errs == nil {
-		return nil
+		return
 	}
 
 	log.Error("%v\n", errs)
 	log.Error(panicTrace(8))
-	return errs
 }
 
 func panicTrace(kb int) string {

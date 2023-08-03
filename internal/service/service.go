@@ -23,29 +23,43 @@ var ParamNotPointerError = errors.New("parameter %d is not a pointer")
 
 type service struct {
 	name string   // service name
-	args []any    // service startup parameters for automatic recovery
 	ch   chan Msg // message queue
 
 	wg     *sync.WaitGroup    // coroutine wait structure
 	ctx    context.Context    // coroutine context
 	cancel context.CancelFunc // coroutine cancel function
 
+	restartCount int       // restart count
+	exit         chan bool // exit channel
+
 	def.Handler // service handle
 }
 
+func (c *service) stop() {
+	c.wg.Done()
+	close(c.ch)
+	c.exit <- true
+}
+
 func (c *service) run() {
-	log.Info("%s service started successfully", c.name)
+	normalExit := false
 	defer func() {
-		p := exception.TryE()
-		if p != nil {
-			log.Error("%s service exited abnormally", c.name)
-			c.OnPanic(p)
-			// TODO try to restart the service
+		if normalExit {
+			c.stop()
 		} else {
-			c.wg.Done()
-			close(c.ch)
+			log.Error("%s service exited abnormally", c.name)
+			c.OnPanic()
+			c.restartCount++
+			c.run()
 		}
 	}()
+	defer exception.TryE()
+	if c.restartCount > 5 {
+		log.Error("%s service restart count exceeded the limit", c.name)
+		normalExit = true
+		return
+	}
+	log.Info("%s service started successfully", c.name)
 Loop:
 	for {
 		select {
@@ -56,6 +70,7 @@ Loop:
 		case <-time.After(16 * time.Millisecond):
 			c.OnTick()
 		case <-c.ctx.Done():
+			normalExit = true
 			break Loop
 		}
 	}

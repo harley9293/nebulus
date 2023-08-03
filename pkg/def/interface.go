@@ -4,7 +4,7 @@ type Handler interface {
 	OnInit(args ...any) error
 	OnStop()
 	OnTick()
-	OnPanic(p any)
+	OnPanic()
 }
 
 type DefaultHandler struct {
@@ -20,5 +20,5 @@ func (h *DefaultHandler) OnStop() {
 func (h *DefaultHandler) OnTick() {
 }
 
-func (h *DefaultHandler) OnPanic(_ error) {
+func (h *DefaultHandler) OnPanic() {
 }
