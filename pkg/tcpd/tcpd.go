@@ -20,7 +20,7 @@ func (ag *AcceptGoroutine) run() {
 	for {
 		c, err := ag.srv.Accept()
 		if err != nil {
-			log.Error("Error accepting:", err)
+			log.Error("Error accepting, err: %s", err)
 			continue
 		}
 		ag.super.connCh <- c
@@ -65,7 +65,6 @@ func (m *Service) OnInit(args ...any) error {
 func (m *Service) OnTick() {
 	select {
 	case c := <-m.connCh:
-		log.Info("New connection:", c.RemoteAddr())
 		m.connMap[m.ai.Id()] = conn{c}
 	}
 }
