@@ -1,150 +1,143 @@
 package service
 
 import (
+	"context"
+	"github.com/harley9293/nebulus/internal/exception"
+	"reflect"
+	"sync"
+	"time"
+
 	log "github.com/harley9293/blotlog"
 	"github.com/harley9293/nebulus/pkg/def"
 	"github.com/harley9293/nebulus/pkg/errors"
-	"reflect"
-	"strings"
-	"sync"
 )
 
-type Rsp struct {
-	err  error
-	data []reflect.Value
+const (
+	msgCap    = 100 // message queue capacity
+	warnLimit = 0.8 // warning ratio
+)
+
+var ParamNumError = errors.New("parameter number error, need:%d, got:%d")
+var ParamTypeMismatch = errors.New("parameter %d type mismatch, need:%v, got:%v")
+var ParamNotPointerError = errors.New("parameter %d is not a pointer")
+
+type service struct {
+	name string   // service name
+	args []any    // service startup parameters for automatic recovery
+	ch   chan Msg // message queue
+
+	wg     *sync.WaitGroup    // coroutine wait structure
+	ctx    context.Context    // coroutine context
+	cancel context.CancelFunc // coroutine cancel function
+
+	def.Handler // service handle
 }
 
-type Msg struct {
-	Cmd   string
-	InOut []any
-	Sync  bool
-	Done  chan Rsp
-}
-
-var RegisterExistError = errors.New("%s service has already been registered")
-var InvalidCallFuncError = errors.New("invalid call function: %s")
-var NotRegisterError = errors.New("%s service is not registered")
-
-var m *mgr
-
-type mgr struct {
-	serviceByName sync.Map
-	wg            sync.WaitGroup
-}
-
-func init() {
-	m = new(mgr)
-}
-
-//=============== tick goroutine =================
-
-func Stop() {
-	m.serviceByName.Range(func(key, value interface{}) bool {
-		v := value.(*context)
-		v.stop()
-		return true
-	})
-	m.wg.Wait()
-	m.serviceByName = sync.Map{}
-}
-
-func Tick() {
-	m.serviceByName.Range(func(key, value interface{}) bool {
-		v := value.(*context)
-		if !v.status() {
-			log.Warn("%s Service is attempting to restart", v.name)
-			err := v.start()
-			if err != nil {
-				log.Error("%s Service restart failed: %s", v.name, err.Error())
-			} else {
-				m.wg.Add(1)
+func (c *service) run() {
+	log.Info("%s service started successfully", c.name)
+	defer func() {
+		p := exception.TryE()
+		if p != nil {
+			log.Error("%s service exited abnormally", c.name)
+			c.OnPanic(p)
+			// TODO try to restart the service
+		} else {
+			c.wg.Done()
+			close(c.ch)
+		}
+	}()
+Loop:
+	for {
+		select {
+		case msg, ok := <-c.ch:
+			if ok {
+				c.rev(msg)
 			}
+		case <-time.After(16 * time.Millisecond):
+			c.OnTick()
+		case <-c.ctx.Done():
+			break Loop
 		}
-		return true
-	})
+	}
+
+	c.OnStop()
+	log.Info("%s service exited normally", c.name)
 }
 
-//=============== other goroutine =================
-
-func Register(name string, h def.Handler, args ...any) error {
-	c := context{name: name, args: args, wg: &m.wg, Handler: h}
-	err := c.start()
+func (c *service) rev(msg Msg) {
+	log.Info("%s service received %s message request: %v", c.name, msg.Cmd, msg.InOut)
+	f := reflect.ValueOf(c.Handler).MethodByName(msg.Cmd)
+	in, err := c.parse(f, msg.InOut)
 	if err != nil {
-		return err
-	}
-
-	_, loaded := m.serviceByName.LoadOrStore(name, &c)
-	if loaded {
-		c.stop() // Stop the context if a service by the same name already exists
-		return RegisterExistError.Fill(name)
-	}
-
-	m.wg.Add(1)
-	return nil
-}
-
-func Destroy(name string) {
-	value, ok := m.serviceByName.Load(name) // Load returns the value stored in the map for a key.
-	if ok {
-		s := value.(*context)
-		s.stop()
-		m.serviceByName.Delete(name) // Delete removes the value for a key from the map.
-	}
-}
-
-func Send(f string, in ...any) {
-	l := strings.Split(f, ".")
-	if len(l) != 2 {
-		log.Warn("Invalid call object: %s, should be service.func", f)
+		log.Error(err.Error())
+		c.rsp(err, []reflect.Value{}, msg)
 		return
 	}
-	name := l[0]
-	cmd := l[1]
+	data := f.Call(in)
+	c.rsp(nil, data, msg)
+}
 
-	value, ok := m.serviceByName.Load(name)
-	if !ok {
-		log.Warn("%s service is not registered, send failed", name)
+func (c *service) rsp(err error, data []reflect.Value, msg Msg) {
+	if msg.Sync {
+		log.Info("%s service returned %s message response, err:%s, data:%v", c.name, msg.Cmd, err, data)
+		msg.Done <- Rsp{err: err, data: data}
+	}
+}
+
+func (c *service) parse(f reflect.Value, params []any) (in []reflect.Value, err error) {
+	if f.Type().NumIn()+f.Type().NumOut() != len(params) {
+		err = ParamNumError.Fill(f.Type().NumIn()+f.Type().NumOut(), len(params))
 		return
 	}
 
-	c := value.(*context)
-	var msg Msg
-	msg.Cmd = cmd
-	msg.InOut = in
-	c.send(msg)
-}
-
-func Call(f string, inout ...any) error {
-	l := strings.Split(f, ".")
-	if len(l) != 2 {
-		err := InvalidCallFuncError.Fill(f)
-		log.Warn(err.Error())
-		return err
-	}
-	name := l[0]
-	cmd := l[1]
-
-	value, ok := m.serviceByName.Load(name)
-	if !ok {
-		err := NotRegisterError.Fill(name)
-		log.Warn(err.Error())
-		return err
-	}
-
-	c := value.(*context)
-	var msg Msg
-	msg.Cmd = cmd
-	msg.InOut = inout
-	done := make(chan Rsp)
-	defer close(done)
-	msg.Sync = true
-	msg.Done = done
-	data, err := c.call(msg)
-	if err == nil {
-		for i := 0; i < len(data); i++ {
-			v := reflect.ValueOf(inout[len(inout)-len(data)+i])
-			v.Elem().Set(data[i])
+	index := 0
+	for i := 0; i < f.Type().NumIn(); i++ {
+		t := reflect.TypeOf(params[index])
+		if f.Type().In(i) != t {
+			err = ParamTypeMismatch.Fill(index, f.Type().In(i), t)
+			return
 		}
+		index++
+		in = append(in, reflect.ValueOf(params[i]))
 	}
-	return err
+
+	for i := 0; i < f.Type().NumOut(); i++ {
+		t := reflect.TypeOf(params[index])
+		if t.Kind() != reflect.Pointer {
+			err = ParamNotPointerError.Fill(index)
+			return
+		}
+		if f.Type().Out(i) != t.Elem() {
+			err = ParamTypeMismatch.Fill(index, f.Type().Out(i), t.Elem())
+			return
+		}
+		index++
+	}
+	return
+}
+
+func (c *service) send(msg Msg) {
+	if len(c.ch) >= cap(c.ch) {
+		log.Error("%s service message queue is full, message discarded: %s, %+v", c.name, msg.Cmd, msg.InOut)
+		if msg.Sync {
+			msg.Done <- Rsp{err: errors.New("message queue is full")}
+		}
+		return
+	}
+
+	c.ch <- msg
+	if len(c.ch) > int(float64(cap(c.ch))*warnLimit) {
+		log.Warn("service load is too high, name: %s, cur: %d, total: %d", c.name, len(c.ch), cap(c.ch))
+	}
+}
+
+func (c *service) call(msg Msg) ([]reflect.Value, error) {
+	c.send(msg)
+
+	select {
+	case rsp := <-msg.Done:
+		return rsp.data, rsp.err
+	case <-time.After(5 * time.Second):
+		return nil, errors.New("call timeout")
+	}
 }

@@ -1,19 +1,16 @@
 package nebulus
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
 	log "github.com/harley9293/blotlog"
 	"github.com/harley9293/nebulus/internal/service"
 	"github.com/harley9293/nebulus/pkg/def"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 type server struct {
-	running bool
-	kill    chan os.Signal
+	kill chan os.Signal
 }
 
 var svr *server
@@ -43,28 +40,14 @@ func Call(f string, inout ...any) error {
 	return service.Call(f, inout...)
 }
 
-func Run() {
-	svr.running = true
-	log.Info("nebulus running")
-	for svr.running {
-		select {
-		case <-time.After(16 * time.Millisecond):
-			service.Tick()
-		case <-svr.kill:
-			svr.running = false
-			log.Info("recv kill signal, nebulus shutdown...")
-		}
-	}
-
-	svr.stop()
-}
-
 func Shutdown() {
 	svr.kill <- syscall.SIGTERM
-	time.Sleep(1 * time.Second)
 }
 
-func (s *server) stop() {
+func Run() {
+	log.Info("nebulus running")
+	<-svr.kill
+	log.Info("recv kill signal, nebulus shutdown...")
 	service.Stop()
 	log.Info("nebulus stop")
 }
