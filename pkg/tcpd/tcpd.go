@@ -2,6 +2,7 @@ package tcpd
 
 import (
 	log "github.com/harley9293/blotlog"
+	"github.com/harley9293/nebulus/pkg/def"
 	"github.com/harley9293/nebulus/pkg/errors"
 	"github.com/harley9293/nebulus/pkg/util"
 	"net"
@@ -11,26 +12,11 @@ import (
 var InitArgsSizeError = errors.New("http init args size error, got:%d")
 var InitArgsTypeError = errors.New("http init args type error, got:%T")
 
-type AcceptGoroutine struct {
-	srv   net.Listener
-	super *Service
-}
-
-func (ag *AcceptGoroutine) run() {
-	for {
-		c, err := ag.srv.Accept()
-		if err != nil {
-			log.Error("Error accepting, err: %s", err)
-			continue
-		}
-		ag.super.connCh <- c
-	}
-}
-
 type Service struct {
-	ag *AcceptGoroutine
+	def.DefaultHandler
 
-	// tick goroutine
+	srv net.Listener
+
 	ai      *util.AutoInc
 	connMap map[int]conn
 	connCh  chan net.Conn
@@ -51,20 +37,32 @@ func (m *Service) OnInit(args ...any) error {
 	}
 
 	var err error = nil
-	m.ag = &AcceptGoroutine{super: m}
-	m.ag.srv, err = net.Listen("tcp", address)
+	m.srv, err = net.Listen("tcp", address)
 	if err != nil {
 		return err
 	}
-	go m.ag.run()
+	go m.OnAccept()
 
 	return nil
 }
 
-// OnTick is called by tick goroutine.
+// OnTick is called by service goroutine.
 func (m *Service) OnTick() {
 	select {
 	case c := <-m.connCh:
 		m.connMap[m.ai.Id()] = conn{c}
+	default:
+	}
+}
+
+// OnAccept is called by stand-alone goroutine.
+func (m *Service) OnAccept() {
+	for {
+		c, err := m.srv.Accept()
+		if err != nil {
+			log.Error("Error accepting, err: %s", err)
+			continue
+		}
+		m.connCh <- c
 	}
 }
