@@ -6,6 +6,8 @@ import (
 )
 
 func reInit() {
+	Stop()
+
 	m = &Mgr{serviceByName: make(map[string]*service)}
 	m.ctx, m.cancelAll = context.WithCancel(context.Background())
 }
@@ -49,13 +51,6 @@ func TestServiceDestroy(t *testing.T) {
 func TestServiceStop(t *testing.T) {
 	reInit()
 	err := Register("Test", &testHandler{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	Stop()
-
-	err = Register("Test", &testHandler{})
 	if err != nil {
 		t.Fatal(err)
 	}

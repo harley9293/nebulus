@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	log "github.com/harley9293/blotlog"
 	"sync"
 	"time"
 )
@@ -27,6 +28,7 @@ func monitorLoop(ctx context.Context, wg *sync.WaitGroup) {
 		if len(delServices) > 0 {
 			m.rwLock.Lock()
 			for _, name := range delServices {
+				log.Info("%s service is deleted by monitor", name)
 				delete(m.serviceByName, name)
 			}
 			m.rwLock.Unlock()
