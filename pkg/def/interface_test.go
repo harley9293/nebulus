@@ -11,4 +11,5 @@ func TestDefaultHandler(t *testing.T) {
 
 	h.OnTick()
 	h.OnStop()
+	h.OnPanic()
 }
