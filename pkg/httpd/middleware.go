@@ -49,12 +49,12 @@ func RspPackMW(ctx *Context) {
 	if ctx.status == http.StatusOK {
 		rsp["code"] = ctx.status
 		rsp["msg"] = "success"
-		rsp["data"] = string(ctx.out)
+		rsp["data"] = ctx.out
 	} else {
 		rsp["code"] = ctx.status
 		rsp["msg"] = http.StatusText(ctx.status)
 	}
-	ctx.out, _ = json.Marshal(rsp)
+	ctx.out = rsp
 }
 
 func LogMW(ctx *Context) {
@@ -69,7 +69,7 @@ func LogMW(ctx *Context) {
 		log.Error("url: %s, err, statue: %d, msg: %s", ctx.r.URL, ctx.status, ctx.err.Error())
 		return
 	}
-	log.Info("url: %s, rsp: %s", ctx.r.URL, string(ctx.out))
+	log.Info("url: %s, rsp: %+v", ctx.r.URL, ctx.out)
 }
 
 func routerMW(ctx *Context) {
@@ -127,10 +127,19 @@ func responseMW(ctx *Context) {
 	ctx.Next()
 
 	if ctx.status == http.StatusOK {
-		_, err := ctx.w.Write(ctx.out)
-		if err != nil {
-			log.Error("ctx.w.Write() failed, err:%s", err.Error())
-			return
+		if ctx.w.Header().Get("Content-Type") == "application/json" {
+			out, _ := json.Marshal(ctx.out)
+			_, err := ctx.w.Write(out)
+			if err != nil {
+				log.Error("ctx.w.Write() failed, err:%s", err.Error())
+				return
+			}
+		} else {
+			_, err := ctx.w.Write(ctx.out.([]byte))
+			if err != nil {
+				log.Error("ctx.w.Write() failed, err:%s", err.Error())
+				return
+			}
 		}
 	} else {
 		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)

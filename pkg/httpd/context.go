@@ -1,7 +1,6 @@
 package httpd
 
 import (
-	"encoding/json"
 	"net/http"
 	"reflect"
 )
@@ -17,7 +16,7 @@ type Context struct {
 	err    error
 
 	in  reflect.Value
-	out []byte
+	out any
 
 	index       int
 	middlewares []MiddlewareFunc
@@ -39,16 +38,13 @@ func (c *Context) Next() {
 
 		if len(result) == 0 {
 			c.w.Header().Set("Content-Type", "text/plain")
+			c.out = []byte("")
 		} else if result[0].Kind() == reflect.String {
 			c.w.Header().Set("Content-Type", "text/plain")
 			c.out = []byte(result[0].String())
 		} else {
 			c.w.Header().Set("Content-Type", "application/json")
-			var err error
-			c.out, err = json.Marshal(result[0].Interface())
-			if err != nil {
-				c.Error(http.StatusInternalServerError, err)
-			}
+			c.out = result[0].Interface()
 		}
 		return
 	}
