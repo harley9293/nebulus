@@ -30,18 +30,25 @@ func (c *Context) CreateSession(key string) {
 
 func (c *Context) Next() {
 	if c.index >= len(c.middlewares) {
-		result := c.handler.Call([]reflect.Value{c.in, reflect.ValueOf(c)})
+		var params []reflect.Value
+		if c.in.IsValid() {
+			params = append(params, c.in)
+		}
+		params = append(params, reflect.ValueOf(c))
+		result := c.handler.Call(params)
 
-		if result[0].Kind() == reflect.Struct {
+		if len(result) == 0 {
+			c.w.Header().Set("Content-Type", "text/plain")
+		} else if result[0].Kind() == reflect.String {
+			c.w.Header().Set("Content-Type", "text/plain")
+			c.out = []byte(result[0].String())
+		} else {
 			c.w.Header().Set("Content-Type", "application/json")
 			var err error
 			c.out, err = json.Marshal(result[0].Interface())
 			if err != nil {
 				c.Error(http.StatusInternalServerError, err)
 			}
-		} else {
-			c.w.Header().Set("Content-Type", "text/plain")
-			c.out = []byte(result[0].String())
 		}
 		return
 	}

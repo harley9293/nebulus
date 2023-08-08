@@ -58,7 +58,11 @@ func RspPackMW(ctx *Context) {
 }
 
 func LogMW(ctx *Context) {
-	log.Info("url: %s, req: %+v", ctx.r.URL, ctx.in.Interface())
+	if !ctx.in.IsValid() {
+		log.Info("url: %s, req: nil", ctx.r.URL)
+	} else {
+		log.Info("url: %s, req: %+v", ctx.r.URL, ctx.in.Interface())
+	}
 	ctx.Next()
 
 	if ctx.status != http.StatusOK {
@@ -80,35 +84,37 @@ func routerMW(ctx *Context) {
 		return
 	}
 
-	arg := reflect.New(h.handler.Type().In(0))
-	contentType := ctx.r.Header.Get("Content-Type")
-	switch contentType {
-	case "application/json":
-		err := json.NewDecoder(ctx.r.Body).Decode(arg.Interface())
-		if err != nil {
-			ctx.Error(http.StatusBadRequest, err)
-			return
-		}
-	default:
-		err := ctx.r.ParseForm()
-		if err != nil {
-			ctx.Error(http.StatusBadRequest, err)
-			return
-		}
-		result := make(map[string]string)
-		for key, values := range ctx.r.Form {
-			if len(values) > 0 {
-				result[key] = values[0] // only take the first value for each key
+	if h.handler.Type().NumIn() > 1 {
+		arg := reflect.New(h.handler.Type().In(0))
+		contentType := ctx.r.Header.Get("Content-Type")
+		switch contentType {
+		case "application/json":
+			err := json.NewDecoder(ctx.r.Body).Decode(arg.Interface())
+			if err != nil {
+				ctx.Error(http.StatusBadRequest, err)
+				return
+			}
+		default:
+			err := ctx.r.ParseForm()
+			if err != nil {
+				ctx.Error(http.StatusBadRequest, err)
+				return
+			}
+			result := make(map[string]string)
+			for key, values := range ctx.r.Form {
+				if len(values) > 0 {
+					result[key] = values[0] // only take the first value for each key
+				}
+			}
+			formJson, _ := json.Marshal(result)
+			err = json.Unmarshal(formJson, arg.Interface())
+			if err != nil {
+				ctx.Error(http.StatusBadRequest, err)
+				return
 			}
 		}
-		formJson, _ := json.Marshal(result)
-		err = json.Unmarshal(formJson, arg.Interface())
-		if err != nil {
-			ctx.Error(http.StatusBadRequest, err)
-			return
-		}
+		ctx.in = arg.Elem()
 	}
-	ctx.in = arg.Elem()
 	ctx.handler = h.handler
 	if len(h.middlewares) > 0 {
 		ctx.middlewares = append(ctx.middlewares, h.middlewares...)

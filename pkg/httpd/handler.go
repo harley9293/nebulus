@@ -6,11 +6,9 @@ import (
 )
 
 var HandlerTypeError = errors.New("add handler type error, got:%T")
-var HandlerParamSizeError = errors.New("handler num in: %d, num out: %d")
 var HandlerParamPointerError = errors.New("handler param must be pointer")
 var HandlerSecondParamTypeError = errors.New("handler second param must be *Context")
 var HandlerRepeatedError = errors.New("handler path already exists, path:%s")
-var HandlerReturnTypeError = errors.New("handler return type error, got:%T")
 
 type handlerData struct {
 	path        string
@@ -34,20 +32,14 @@ func handlerVerify(value reflect.Value) error {
 		return HandlerTypeError.Fill(reflect.TypeOf(value))
 	}
 
-	if value.Type().NumIn() != 2 || value.Type().NumOut() != 1 {
-		return HandlerParamSizeError.Fill(value.Type().NumIn(), value.Type().NumOut())
+	for i := 0; i < value.Type().NumIn(); i++ {
+		if value.Type().In(i).Kind() != reflect.Ptr {
+			return HandlerParamPointerError
+		}
 	}
 
-	if value.Type().In(0).Kind() != reflect.Ptr || value.Type().In(1).Kind() != reflect.Ptr {
-		return HandlerParamPointerError
-	}
-
-	if value.Type().In(1) != reflect.TypeOf(&Context{}) {
+	if value.Type().In(value.Type().NumIn()-1) != reflect.TypeOf(&Context{}) {
 		return HandlerSecondParamTypeError
-	}
-
-	if value.Type().Out(0).Kind() != reflect.String && value.Type().Out(0).Kind() != reflect.Struct {
-		return HandlerReturnTypeError.Fill(value.Type().Out(0))
 	}
 
 	return nil
