@@ -89,6 +89,7 @@ func (m *Service) OnTick() {
 	select {
 	case err := <-m.err:
 		panic(err)
+	default:
 	}
 }
 
