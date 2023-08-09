@@ -52,24 +52,24 @@ func RspPackMW(ctx *Context) {
 		rsp["data"] = ctx.out
 	} else {
 		rsp["code"] = ctx.status
-		rsp["msg"] = http.StatusText(ctx.status)
+		rsp["msg"] = ctx.err.Error()
 	}
 	ctx.out = rsp
 }
 
 func LogMW(ctx *Context) {
 	if !ctx.in.IsValid() {
-		log.Info("url: %s, req: nil", ctx.r.URL)
+		log.Info("%s|url: %s, req: nil", ctx.r.Method, ctx.r.URL)
 	} else {
-		log.Info("url: %s, req: %+v", ctx.r.URL, ctx.in.Interface())
+		log.Info("%s|url: %s, req: %+v", ctx.r.Method, ctx.r.URL, ctx.in.Interface())
 	}
 	ctx.Next()
 
 	if ctx.status != http.StatusOK {
-		log.Error("url: %s, err, statue: %d, msg: %s", ctx.r.URL, ctx.status, ctx.err.Error())
+		log.Error("%s|url: %s, err, statue: %d, msg: %s", ctx.r.Method, ctx.r.URL, ctx.status, ctx.err.Error())
 		return
 	}
-	log.Info("url: %s, rsp: %+v", ctx.r.URL, ctx.out)
+	log.Info("%s|url: %s, rsp: %+v", ctx.r.Method, ctx.r.URL, ctx.out)
 }
 
 func routerMW(ctx *Context) {
@@ -137,7 +137,7 @@ func responseMW(ctx *Context) {
 			}
 		}
 	} else {
-		http.Error(ctx.w, http.StatusText(ctx.status), ctx.status)
+		http.Error(ctx.w, ctx.err.Error(), ctx.status)
 		return
 	}
 }
