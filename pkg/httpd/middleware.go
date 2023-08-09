@@ -73,19 +73,14 @@ func LogMW(ctx *Context) {
 }
 
 func routerMW(ctx *Context) {
-	h, ok := ctx.service.hm.data[ctx.r.URL.Path]
-	if !ok {
+	ro := ctx.service.router.get(ctx.r.Method, ctx.r.URL.Path)
+	if ro == nil {
 		ctx.Error(http.StatusNotFound, errors.New(http.StatusText(http.StatusNotFound)))
 		return
 	}
 
-	if ctx.r.Method != h.method {
-		ctx.Error(http.StatusMethodNotAllowed, errors.New(http.StatusText(http.StatusMethodNotAllowed)))
-		return
-	}
-
-	if h.handler.Type().NumIn() > 1 {
-		arg := reflect.New(h.handler.Type().In(0))
+	if ro.fn.Type().NumIn() > 1 {
+		arg := reflect.New(ro.fn.Type().In(0))
 		contentType := ctx.r.Header.Get("Content-Type")
 		switch contentType {
 		case "application/json":
@@ -115,9 +110,9 @@ func routerMW(ctx *Context) {
 		}
 		ctx.in = arg.Elem()
 	}
-	ctx.handler = h.handler
-	if len(h.middlewares) > 0 {
-		ctx.middlewares = append(ctx.middlewares, h.middlewares...)
+	ctx.handler = ro.fn
+	if len(ro.middlewares) > 0 {
+		ctx.middlewares = append(ctx.middlewares, ro.middlewares...)
 	}
 
 	ctx.Next()

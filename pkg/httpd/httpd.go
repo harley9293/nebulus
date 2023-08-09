@@ -22,20 +22,20 @@ type Service struct {
 	err      chan error
 
 	globalMiddlewares []MiddlewareFunc
-	hm                *handlerMng
+	router            *router
 	sm                *sessionMng
 	cfg               *Config
 }
 
 func NewService(config *Config) *Service {
 	config.Fill()
-	service := &Service{hm: newHandlerMng(), sm: newSessionMng(config.SType, config.SExpireTime, config.Redis), cfg: config}
+	service := &Service{router: newRouter(), sm: newSessionMng(config.SType, config.SExpireTime, config.Redis), cfg: config}
 	service.AddGlobalMiddleWare(responseMW, routerMW)
 	return service
 }
 
 func (m *Service) AddHandler(method, path string, f any, middleware ...MiddlewareFunc) {
-	err := m.hm.add(method, path, f, middleware...)
+	err := m.router.add(method, path, f, middleware...)
 	if err != nil {
 		panic(err)
 	}

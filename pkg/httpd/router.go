@@ -8,23 +8,21 @@ import (
 var HandlerTypeError = errors.New("add handler type error, got:%T")
 var HandlerParamPointerError = errors.New("handler param must be pointer")
 var HandlerSecondParamTypeError = errors.New("handler second param must be *Context")
-var HandlerRepeatedError = errors.New("handler path already exists, path:%s")
+var HandlerRepeatedError = errors.New("handler path already exists,method:%s, path:%s")
 
-type handlerData struct {
+type routes struct {
 	path        string
 	method      string
-	handler     reflect.Value
+	fn          reflect.Value
 	middlewares []MiddlewareFunc
 }
 
-type handlerMng struct {
-	data map[string]*handlerData
+type router struct {
+	data []*routes
 }
 
-func newHandlerMng() *handlerMng {
-	return &handlerMng{
-		data: make(map[string]*handlerData),
-	}
+func newRouter() *router {
+	return &router{}
 }
 
 func handlerVerify(value reflect.Value) error {
@@ -45,9 +43,11 @@ func handlerVerify(value reflect.Value) error {
 	return nil
 }
 
-func (m *handlerMng) add(method, path string, f any, middlewares ...MiddlewareFunc) error {
-	if _, ok := m.data[path]; ok {
-		return HandlerRepeatedError.Fill(path)
+func (m *router) add(method, path string, f any, middlewares ...MiddlewareFunc) error {
+	for _, v := range m.data {
+		if v.method == method && v.path == path {
+			return HandlerRepeatedError.Fill(method, path)
+		}
 	}
 
 	fn := reflect.ValueOf(f)
@@ -56,12 +56,21 @@ func (m *handlerMng) add(method, path string, f any, middlewares ...MiddlewareFu
 		return err
 	}
 
-	m.data[path] = &handlerData{
+	m.data = append(m.data, &routes{
 		path:        path,
 		method:      method,
-		handler:     fn,
+		fn:          fn,
 		middlewares: middlewares,
-	}
+	})
 
+	return nil
+}
+
+func (m *router) get(method, path string) *routes {
+	for _, v := range m.data {
+		if v.method == method && v.path == path {
+			return v
+		}
+	}
 	return nil
 }

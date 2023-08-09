@@ -40,23 +40,6 @@ func TestRouterMW_NotFound(t *testing.T) {
 	}
 }
 
-func TestRouterMW_MethodNotAllowed(t *testing.T) {
-	NewTestHttpService("Test", "127.0.0.1:30007", func(s *Service) {
-		s.AddHandler("POST", "/test", func(testStruct *EmptyTestStruct, ctx *Context) string {
-			return ""
-		})
-	})
-	defer nebulus.Destroy("Test")
-	client := NewClient("http://127.0.0.1:30007")
-	err := client.Get("/test", nil)
-	if err != nil {
-		t.Fatal("doRequest() failed, err:" + err.Error())
-	}
-	if client.status != http.StatusMethodNotAllowed {
-		t.Fatal("status not statusMethodNotAllowed, status:" + string(rune(client.status)))
-	}
-}
-
 func TestRouterMW_RequestDecodeError(t *testing.T) {
 	type TestReq struct {
 		Test int `json:"test"`
