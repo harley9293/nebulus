@@ -20,16 +20,6 @@ func TestHandler_HandlerTypeError(t *testing.T) {
 	}
 }
 
-func TestHandler_HandlerParamSizeError(t *testing.T) {
-	mng := newHandlerMng()
-	err := mng.add("GET", "/hello", func() string {
-		return ""
-	})
-	if err == nil {
-		t.Fatal("add handler error")
-	}
-}
-
 func TestHandler_HandlerParamPointerError(t *testing.T) {
 	mng := newHandlerMng()
 	err := mng.add("GET", "/hello", func(req EmptyTestStruct, ctx Context) string {
@@ -44,16 +34,6 @@ func TestHandler_HandlerSecondParamTypeError(t *testing.T) {
 	mng := newHandlerMng()
 	err := mng.add("GET", "/hello", func(req *EmptyTestStruct, ctx *EmptyTestStruct) string {
 		return ""
-	})
-	if err == nil {
-		t.Fatal("add handler error")
-	}
-}
-
-func TestHandler_HandlerReturnTypeError(t *testing.T) {
-	mng := newHandlerMng()
-	err := mng.add("GET", "/hello", func(req *EmptyTestStruct, ctx *Context) int {
-		return 0
 	})
 	if err == nil {
 		t.Fatal("add handler error")

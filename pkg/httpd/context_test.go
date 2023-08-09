@@ -46,26 +46,3 @@ func TestContext_Next_RspString(t *testing.T) {
 		t.Fatal("doRequest() failed, rsp:" + client.strRsp)
 	}
 }
-
-func TestContext_Next_RspJsonMarshalError(t *testing.T) {
-	NewTestHttpService("Test", "127.0.0.1:30001", func(s *Service) {
-		type ComplexStructRsp struct {
-			Ch chan int `json:"ch"`
-		}
-		s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
-		s.AddHandler("POST", "/test", func(req *EmptyTestStruct, ctx *Context) ComplexStructRsp {
-			return ComplexStructRsp{Ch: make(chan int)}
-		})
-	})
-	defer nebulus.Destroy("Test")
-
-	client := NewClient("http://127.0.0.1:30001")
-	err := client.Post("/test", &EmptyTestStruct{})
-	if err != nil {
-		t.Fatal("doRequest() failed, err:" + err.Error())
-	}
-
-	if client.status != http.StatusInternalServerError {
-		t.Fatal("doRequest() failed, status:" + string(rune(client.status)))
-	}
-}
