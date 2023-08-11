@@ -21,6 +21,7 @@ type Service struct {
 	serveMux *http.ServeMux
 	err      chan error
 
+	logMiddleware     MiddlewareFunc
 	globalMiddlewares []MiddlewareFunc
 	router            *router
 
@@ -29,7 +30,12 @@ type Service struct {
 }
 
 func NewService() *Service {
-	service := &Service{router: newRouter(), sessionMap: make(map[string]def.Session), baseSession: &defaultSession{cfgExpireTime: 24 * time.Hour}}
+	service := &Service{
+		logMiddleware: LogMW,
+		router:        newRouter(),
+		sessionMap:    make(map[string]def.Session),
+		baseSession:   &defaultSession{cfgExpireTime: 24 * time.Hour},
+	}
 	service.AddGlobalMiddleWare(responseMW, routerMW)
 	return service
 }
@@ -47,6 +53,10 @@ func (m *Service) AddGlobalMiddleWare(f ...MiddlewareFunc) {
 
 func (m *Service) UseSession(session def.Session) {
 	m.baseSession = session
+}
+
+func (m *Service) UseLog(f MiddlewareFunc) {
+	m.logMiddleware = f
 }
 
 func (m *Service) GetSession(id string) def.Session {
@@ -86,7 +96,7 @@ func (m *Service) OnInit(args ...any) error {
 			w:           w,
 			service:     m,
 			status:      http.StatusOK,
-			middlewares: m.globalMiddlewares,
+			middlewares: append([]MiddlewareFunc{m.logMiddleware}, m.globalMiddlewares...),
 		}
 		c.Next()
 	})

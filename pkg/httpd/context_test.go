@@ -25,7 +25,7 @@ func TestContext_Error(t *testing.T) {
 
 func TestContext_Next_RspString(t *testing.T) {
 	NewTestHttpService("Test", "127.0.0.1:30000", func(s *Service) {
-		s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
+		s.AddGlobalMiddleWare(CookieMW, CorsMW)
 		s.AddHandler("POST", "/test", func(req *EmptyTestStruct, ctx *Context) string {
 			return "hello"
 		})

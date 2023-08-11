@@ -94,3 +94,8 @@ func TestService_UseSession(t *testing.T) {
 		t.Fatal("session not nil")
 	}
 }
+
+func TestService_UseLog(t *testing.T) {
+	s := NewService()
+	s.UseLog(LogMW)
+}

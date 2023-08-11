@@ -59,13 +59,13 @@ func RspPackMW(ctx *Context) {
 }
 
 func LogMW(ctx *Context) {
+	log.Info("%s|url: %s", ctx.r.Method, ctx.r.URL)
+	ctx.Next()
 	if !ctx.in.IsValid() {
 		log.Info("%s|url: %s, req: nil", ctx.r.Method, ctx.r.URL)
 	} else {
 		log.Info("%s|url: %s, req: %+v", ctx.r.Method, ctx.r.URL, ctx.in.Interface())
 	}
-	ctx.Next()
-
 	if ctx.status != http.StatusOK {
 		log.Error("%s|url: %s, err, statue: %d, msg: %s", ctx.r.Method, ctx.r.URL, ctx.status, ctx.err.Error())
 		return

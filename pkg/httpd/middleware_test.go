@@ -145,7 +145,7 @@ func TestResponseMW_WriteResponseError(t *testing.T) {
 
 func TestAuthMW_Fail(t *testing.T) {
 	NewTestHttpService("Test", "127.0.0.1:30003", func(s *Service) {
-		s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
+		s.AddGlobalMiddleWare(CookieMW, CorsMW)
 		s.AddHandler("POST", "/test", func(testStruct *EmptyTestStruct, ctx *Context) string {
 			return "test"
 		}, AuthMW)
@@ -167,7 +167,7 @@ func TestAuthMW_Success(t *testing.T) {
 		Pass string `json:"pass"`
 	}
 	NewTestHttpService("Test", "127.0.0.1:30002", func(s *Service) {
-		s.AddGlobalMiddleWare(LogMW, CookieMW, CorsMW)
+		s.AddGlobalMiddleWare(CookieMW, CorsMW)
 		s.AddHandler("POST", "/login", func(req *LoginReq, ctx *Context) string {
 			ctx.CreateSession(req.User + req.Pass)
 			return ""
@@ -210,7 +210,7 @@ func TestRspPackMW_Success(t *testing.T) {
 		Data TestRsp `json:"data"`
 	}
 	NewTestHttpService("Test", "127.0.0.1:31001", func(s *Service) {
-		s.AddGlobalMiddleWare(LogMW, RspPackMW)
+		s.AddGlobalMiddleWare(RspPackMW)
 		s.AddHandler("POST", "/test", func(ctx *Context) (rsp TestRsp) {
 			rsp.Test = "hello world!"
 			return
@@ -249,7 +249,7 @@ func TestRspPackMW_Fail(t *testing.T) {
 		Msg  string `json:"msg"`
 	}
 	NewTestHttpService("Test", "127.0.0.1:31002", func(s *Service) {
-		s.AddGlobalMiddleWare(LogMW, RspPackMW)
+		s.AddGlobalMiddleWare(RspPackMW)
 		s.AddHandler("POST", "/test", func(ctx *Context) {
 			ctx.Error(http.StatusInternalServerError, errors.New("test error"))
 			return

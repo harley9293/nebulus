@@ -123,7 +123,7 @@ func Example() {
 		panic("NewService() failed")
 	}
 
-	s.AddGlobalMiddleWare(httpd.LogMW, httpd.CookieMW, httpd.CorsMW)
+	s.AddGlobalMiddleWare(httpd.CookieMW, httpd.CorsMW)
 	s.AddHandler("POST", "/login", HandleLoginReq)
 	s.AddHandler("GET", "/info", HandleGetInfoReq, httpd.AuthMW)
 
