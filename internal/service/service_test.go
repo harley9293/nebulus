@@ -189,3 +189,23 @@ func TestCall_Timeout(t *testing.T) {
 		t.Fatal("TestTimeout should not be called successfully")
 	}
 }
+
+func TestService_Panic(t *testing.T) {
+	c, err := initContext("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 6; i++ {
+		// test func panic
+		done := make(chan Rsp)
+		go func() {
+			_, _ = c.call(Msg{
+				Cmd:   "TestPanic",
+				InOut: []any{},
+				Sync:  true,
+				Done:  done,
+			})
+		}()
+	}
+}

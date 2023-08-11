@@ -40,14 +40,17 @@ func (c *Client) Get(path string, params map[string]string) error {
 }
 
 func (c *Client) Post(path string, body any) error {
-	b, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
 	c.method = "POST"
 	c.url = c.host + path
-	c.body = bytes.NewBuffer(b)
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		c.body = bytes.NewBuffer(b)
+	} else {
+		c.body = bytes.NewBuffer([]byte("{}"))
+	}
 
 	return c.do()
 }

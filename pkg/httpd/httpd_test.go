@@ -81,3 +81,16 @@ func TestServiceFailed(t *testing.T) {
 		t.Fatal("rsp not ok, rsp:" + client.strRsp)
 	}
 }
+
+func TestService_UseSession(t *testing.T) {
+	s := NewService()
+	s.UseSession(&defaultSession{})
+
+	s2 := s.NewSession("test")
+	if s.GetSession(s2.ID()) != nil {
+		t.Fatal("session not nil")
+	}
+	if s.GetSession("test") != nil {
+		t.Fatal("session not nil")
+	}
+}

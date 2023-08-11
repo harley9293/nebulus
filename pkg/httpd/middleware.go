@@ -54,6 +54,7 @@ func RspPackMW(ctx *Context) {
 		rsp["code"] = ctx.status
 		rsp["msg"] = ctx.err.Error()
 	}
+	ctx.status = http.StatusOK
 	ctx.out = rsp
 }
 

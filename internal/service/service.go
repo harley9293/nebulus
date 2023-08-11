@@ -48,17 +48,18 @@ func (c *service) run() {
 			c.stop()
 		} else {
 			log.Error("%s service exited abnormally", c.name)
+			if c.restartCount >= 5 {
+				log.Error("%s service restart count exceeded the limit", c.name)
+				c.stop()
+				return
+			}
+			log.Info("%s service try restart", c.name)
 			c.OnPanic()
 			c.restartCount++
 			c.run()
 		}
 	}()
 	defer exception.TryE()
-	if c.restartCount > 5 {
-		log.Error("%s service restart count exceeded the limit", c.name)
-		normalExit = true
-		return
-	}
 	log.Info("%s service started successfully", c.name)
 Loop:
 	for {

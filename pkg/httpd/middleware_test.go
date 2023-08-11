@@ -5,14 +5,16 @@ import (
 	"github.com/harley9293/nebulus"
 	"github.com/harley9293/nebulus/pkg/errors"
 	"net/http"
+	"strconv"
 	"testing"
 )
 
 type mockResponseWriter struct {
+	header http.Header
 }
 
 func (m *mockResponseWriter) Header() http.Header {
-	return http.Header{}
+	return m.header
 }
 
 func (m *mockResponseWriter) Write(b []byte) (int, error) {
@@ -121,15 +123,24 @@ func TestRouterMW_UrlParamDecodeError(t *testing.T) {
 }
 
 func TestResponseMW_WriteResponseError(t *testing.T) {
+	type TestRsp struct {
+		Test string `json:"test"`
+	}
 	NewTestHttpService("Test", "127.0.0.1:30005", func(s *Service) {
 		s.AddHandler("POST", "/test", func(testStruct *EmptyTestStruct, ctx *Context) string {
-			ctx.w = &mockResponseWriter{}
+			ctx.w = &mockResponseWriter{header: http.Header{}}
 			return ""
+		})
+		s.AddHandler("POST", "/test2", func(ctx *Context) (rsp TestRsp) {
+			ctx.w = &mockResponseWriter{header: http.Header{}}
+			ctx.w.Header().Set("Content-Type", "application/json")
+			return
 		})
 	})
 	defer nebulus.Destroy("Test")
 	client := NewClient("http://127.0.0.1:30005")
 	_ = client.Post("/test", &EmptyTestStruct{})
+	_ = client.Post("/test2", nil)
 }
 
 func TestAuthMW_Fail(t *testing.T) {
@@ -185,5 +196,85 @@ func TestAuthMW_Success(t *testing.T) {
 	}
 	if client.strRsp != "test" {
 		t.Fatal("rsp not ok, rsp:" + client.strRsp)
+	}
+}
+
+func TestRspPackMW_Success(t *testing.T) {
+	type TestRsp struct {
+		Test string `json:"test"`
+	}
+
+	type TestPackRsp struct {
+		Code int     `json:"code"`
+		Msg  string  `json:"msg"`
+		Data TestRsp `json:"data"`
+	}
+	NewTestHttpService("Test", "127.0.0.1:31001", func(s *Service) {
+		s.AddGlobalMiddleWare(LogMW, RspPackMW)
+		s.AddHandler("POST", "/test", func(ctx *Context) (rsp TestRsp) {
+			rsp.Test = "hello world!"
+			return
+		})
+	})
+	defer nebulus.Destroy("Test")
+
+	client := NewClient("http://127.0.0.1:31001")
+	err := client.Post("/test", nil)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(client.status)))
+	}
+
+	var rsp TestPackRsp
+	err = client.jsonRsp.Decode(&rsp)
+	if err != nil {
+		t.Fatal("decode rsp failed, err:" + err.Error())
+	}
+	if rsp.Code != http.StatusOK {
+		t.Fatal("rsp.Code not ok, rsp.Code:" + strconv.Itoa(rsp.Code))
+	}
+	if rsp.Msg != "success" {
+		t.Fatal("rsp.Msg not ok, rsp.Msg:" + rsp.Msg)
+	}
+	if rsp.Data.Test != "hello world!" {
+		t.Fatal("rsp.Data.Test not ok, rsp.Data.Test:" + rsp.Data.Test)
+	}
+}
+
+func TestRspPackMW_Fail(t *testing.T) {
+	type TestPackRsp struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	NewTestHttpService("Test", "127.0.0.1:31002", func(s *Service) {
+		s.AddGlobalMiddleWare(LogMW, RspPackMW)
+		s.AddHandler("POST", "/test", func(ctx *Context) {
+			ctx.Error(http.StatusInternalServerError, errors.New("test error"))
+			return
+		})
+	})
+	defer nebulus.Destroy("Test")
+
+	client := NewClient("http://127.0.0.1:31002")
+	err := client.Post("/test", nil)
+	if err != nil {
+		t.Fatal("doRequest() failed, err:" + err.Error())
+	}
+	if client.status != http.StatusOK {
+		t.Fatal("status not ok, status:" + string(rune(client.status)))
+	}
+
+	var rsp TestPackRsp
+	err = client.jsonRsp.Decode(&rsp)
+	if err != nil {
+		t.Fatal("decode rsp failed, err:" + err.Error())
+	}
+	if rsp.Code != http.StatusInternalServerError {
+		t.Fatal("rsp.Code not ok, rsp.Code:" + strconv.Itoa(rsp.Code))
+	}
+	if rsp.Msg != "test error" {
+		t.Fatal("rsp.Msg not ok, rsp.Msg:" + rsp.Msg)
 	}
 }
