@@ -11,7 +11,7 @@ import (
 func AuthMW(ctx *Context) {
 	sessionCookie, err := ctx.r.Cookie("token")
 	if err == nil {
-		ctx.Session = ctx.service.sm.get(sessionCookie.Value)
+		ctx.Session = ctx.service.GetSession(sessionCookie.Value)
 	}
 
 	if ctx.Session == nil {
@@ -28,7 +28,7 @@ func CookieMW(ctx *Context) {
 	if ctx.Session != nil {
 		http.SetCookie(ctx.w, &http.Cookie{
 			Name:  "token",
-			Value: ctx.Session.Get("id"),
+			Value: ctx.Session.ID(),
 		})
 	}
 }

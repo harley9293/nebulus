@@ -33,7 +33,7 @@ func HandleGetInfoReq(req *GetInfoReq, ctx *httpd.Context) GetInfoRsp {
 }
 
 func Example() {
-	s := httpd.NewService(&httpd.Config{})
+	s := httpd.NewService()
 	if s == nil {
 		panic("NewService() failed")
 	}

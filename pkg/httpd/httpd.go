@@ -23,13 +23,13 @@ type Service struct {
 
 	globalMiddlewares []MiddlewareFunc
 	router            *router
-	sm                *sessionMng
-	cfg               *Config
+
+	sessionMap  map[string]def.Session
+	baseSession def.Session
 }
 
-func NewService(config *Config) *Service {
-	config.Fill()
-	service := &Service{router: newRouter(), sm: newSessionMng(config.SType, config.SExpireTime, config.Redis), cfg: config}
+func NewService() *Service {
+	service := &Service{router: newRouter(), sessionMap: make(map[string]def.Session), baseSession: &defaultSession{cfgExpireTime: 24 * time.Hour}}
 	service.AddGlobalMiddleWare(responseMW, routerMW)
 	return service
 }
@@ -43,6 +43,29 @@ func (m *Service) AddHandler(method, path string, f any, middleware ...Middlewar
 
 func (m *Service) AddGlobalMiddleWare(f ...MiddlewareFunc) {
 	m.globalMiddlewares = append(m.globalMiddlewares, f...)
+}
+
+func (m *Service) UseSession(session def.Session) {
+	m.baseSession = session
+}
+
+func (m *Service) GetSession(id string) def.Session {
+	if session, ok := m.sessionMap[id]; ok {
+		if session.IsExpired() {
+			delete(m.sessionMap, id)
+			return nil
+		} else {
+			return session
+		}
+	} else {
+		return nil
+	}
+}
+
+func (m *Service) NewSession(id string) def.Session {
+	session := m.baseSession.New(id)
+	m.sessionMap[session.ID()] = session
+	return session
 }
 
 func (m *Service) OnInit(args ...any) error {

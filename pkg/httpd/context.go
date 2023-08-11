@@ -1,12 +1,13 @@
 package httpd
 
 import (
+	"github.com/harley9293/nebulus/pkg/def"
 	"net/http"
 	"reflect"
 )
 
 type Context struct {
-	Session Session
+	Session def.Session
 
 	r       *http.Request
 	w       http.ResponseWriter
@@ -24,7 +25,7 @@ type Context struct {
 }
 
 func (c *Context) CreateSession(key string) {
-	c.Session = c.service.sm.new(key)
+	c.Session = c.service.NewSession(key)
 }
 
 func (c *Context) Next() {
