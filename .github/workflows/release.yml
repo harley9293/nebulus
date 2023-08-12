@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Compile for Windows, Mac and Linux
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o ${{ github.ref }}-pbtools-linux-amd64
+          GOOS=darwin GOARCH=arm64 go build -o ${{ github.ref }}-pbtools-darwin-arm64
+          GOOS=windows GOARCH=amd64 go build -o ${{ github.ref }}-pbtools-windows-amd64.exe
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.txt
