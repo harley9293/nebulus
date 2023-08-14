@@ -38,6 +38,11 @@ func CorsMW(ctx *Context) {
 	ctx.w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	ctx.w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 
+	if ctx.r.Method == "OPTIONS" {
+		ctx.Error(http.StatusOK, nil)
+		return
+	}
+
 	ctx.Next()
 }
 
@@ -74,6 +79,11 @@ func LogMW(ctx *Context) {
 }
 
 func routerMW(ctx *Context) {
+	if ctx.r.Method == "OPTIONS" {
+		ctx.Next()
+		return
+	}
+
 	ro := ctx.service.router.get(ctx.r.Method, ctx.r.URL.Path)
 	if ro == nil {
 		ctx.Error(http.StatusNotFound, errors.New(http.StatusText(http.StatusNotFound)))
