@@ -45,6 +45,7 @@ func initContext(name string, args ...any) (*service, error) {
 	if err != nil {
 		return nil, err
 	}
+	wg.Add(1)
 	go c.run()
 	return c, nil
 }
