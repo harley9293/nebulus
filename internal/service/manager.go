@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	log "github.com/harley9293/blotlog"
 	"github.com/harley9293/nebulus/pkg/def"
-	"github.com/harley9293/nebulus/pkg/errors"
 	"reflect"
 	"strings"
 	"sync"
@@ -21,10 +21,6 @@ type Msg struct {
 	Sync  bool
 	Done  chan Rsp
 }
-
-var RegisterExistError = errors.New("%s service has already been registered")
-var InvalidCallFuncError = errors.New("invalid call function: %s")
-var NotRegisterError = errors.New("%s service is not registered")
 
 var m *Mgr
 
@@ -58,7 +54,7 @@ func Register(name string, h def.Handler, args ...any) error {
 	defer m.rwLock.Unlock()
 	_, ok := m.serviceByName[name]
 	if ok {
-		return RegisterExistError.Fill(name)
+		return errors.New("service has already been registered")
 	}
 
 	c := &service{name: name, wg: &m.wg, Handler: h, ch: make(chan Msg, msgCap), exit: make(chan bool, 1)}
@@ -110,7 +106,7 @@ func Send(f string, in ...any) {
 func Call(f string, inout ...any) error {
 	l := strings.Split(f, ".")
 	if len(l) != 2 {
-		err := InvalidCallFuncError.Fill(f)
+		err := errors.New("invalid call function")
 		log.Warn(err.Error())
 		return err
 	}
@@ -121,7 +117,7 @@ func Call(f string, inout ...any) error {
 	defer m.rwLock.RUnlock()
 	c, ok := m.serviceByName[name]
 	if !ok {
-		err := NotRegisterError.Fill(name)
+		err := errors.New("service is not registered")
 		log.Warn(err.Error())
 		return err
 	}

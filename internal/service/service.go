@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"github.com/harley9293/nebulus/internal/exception"
 	"reflect"
 	"sync"
@@ -9,17 +10,12 @@ import (
 
 	log "github.com/harley9293/blotlog"
 	"github.com/harley9293/nebulus/pkg/def"
-	"github.com/harley9293/nebulus/pkg/errors"
 )
 
 const (
 	msgCap    = 100 // message queue capacity
 	warnLimit = 0.8 // warning ratio
 )
-
-var ParamNumError = errors.New("parameter number error, need:%d, got:%d")
-var ParamTypeMismatch = errors.New("parameter %d type mismatch, need:%v, got:%v")
-var ParamNotPointerError = errors.New("parameter %d is not a pointer")
 
 type service struct {
 	name string   // service name
@@ -102,7 +98,7 @@ func (c *service) rsp(err error, data []reflect.Value, msg Msg) {
 
 func (c *service) parse(f reflect.Value, params []any) (in []reflect.Value, err error) {
 	if f.Type().NumIn()+f.Type().NumOut() != len(params) {
-		err = ParamNumError.Fill(f.Type().NumIn()+f.Type().NumOut(), len(params))
+		err = errors.New("parameter number error")
 		return
 	}
 
@@ -110,7 +106,7 @@ func (c *service) parse(f reflect.Value, params []any) (in []reflect.Value, err 
 	for i := 0; i < f.Type().NumIn(); i++ {
 		t := reflect.TypeOf(params[index])
 		if f.Type().In(i) != t {
-			err = ParamTypeMismatch.Fill(index, f.Type().In(i), t)
+			err = errors.New("parameter type mismatch")
 			return
 		}
 		index++
@@ -120,11 +116,11 @@ func (c *service) parse(f reflect.Value, params []any) (in []reflect.Value, err 
 	for i := 0; i < f.Type().NumOut(); i++ {
 		t := reflect.TypeOf(params[index])
 		if t.Kind() != reflect.Pointer {
-			err = ParamNotPointerError.Fill(index)
+			err = errors.New("parameter is not a pointer")
 			return
 		}
 		if f.Type().Out(i) != t.Elem() {
-			err = ParamTypeMismatch.Fill(index, f.Type().Out(i), t.Elem())
+			err = errors.New("parameter type mismatch")
 			return
 		}
 		index++

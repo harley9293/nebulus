@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"github.com/harley9293/nebulus/pkg/def"
 	"sync"
 	"testing"
@@ -14,7 +15,7 @@ type testHandler struct {
 
 func (h *testHandler) OnInit(in ...any) error {
 	if len(in) != 0 {
-		return ParamNumError.Fill(0, len(in))
+		return errors.New("invalid input")
 	}
 	return nil
 }
