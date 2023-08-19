@@ -1,6 +1,1 @@
-1. add service monitor
-2. serviceMap add rwLock
-3. httpd.session refactor
-4. httpd.router refactor
-5. fix service auto restart
-6. fix bug
+Remove irrelevant features, retaining the core distributed framework functionality.
